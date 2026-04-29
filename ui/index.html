@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Test Engine</title>
+<style>
+:root {
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #4f46e5;
+  --accent-h: #4338ca;
+  --success: #16a34a;
+  --error: #dc2626;
+  --warn: #d97706;
+  --info: #2563eb;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; --muted: #94a3b8;
+    --border: #334155; --accent: #6366f1; --accent-h: #4f46e5;
+    --success: #22c55e; --error: #ef4444; --warn: #f59e0b; --info: #60a5fa;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;font-size:14px}
+header{padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
+header h1{font-size:16px;font-weight:700}
+.tagline{font-size:12px;color:var(--muted);margin-left:4px}
+.main{flex:1;display:grid;grid-template-columns:320px 1fr 360px;overflow:hidden}
+.panel{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--panel)}
+.panel:last-child{border-right:none}
+.panel-hdr{padding:12px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);background:var(--panel)}
+.panel-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:var(--muted)}
+textarea,input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;transition:border-color .15s}
+textarea:focus,input:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical}
+.row{display:flex;gap:8px;align-items:flex-end}
+.row input{flex:1}
+.btn{padding:9px 14px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;width:100%}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--accent-h)}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.btn-danger{background:var(--error);color:#fff;display:none;margin-top:8px}
+.btn-danger:hover{opacity:.88}
+.btn-sm{padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn-sm:hover{background:var(--bg)}
+.hint-toggle{font-size:12px;color:var(--accent);cursor:pointer;border:none;background:none;padding:0;font-weight:500}
+/* Badge */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.b-queued{background:#e0e7ff;color:#4338ca}
+.b-parsing{background:#fef3c7;color:#b45309}
+.b-generating{background:#fef3c7;color:#b45309}
+.b-running{background:#dbeafe;color:#1d4ed8}
+.b-retrying{background:#fee2e2;color:#b91c1c}
+.b-completed{background:#dcfce7;color:#15803d}
+.b-failed{background:#fee2e2;color:#b91c1c}
+.b-cancelled{background:#f1f5f9;color:#64748b}
+@media(prefers-color-scheme:dark){
+  .b-queued{background:#312e81;color:#a5b4fc}.b-parsing,.b-generating{background:#451a03;color:#fcd34d}
+  .b-running{background:#1e3a5f;color:#93c5fd}.b-retrying,.b-failed{background:#450a0a;color:#fca5a5}
+  .b-completed{background:#052e16;color:#86efac}.b-cancelled{background:#1e293b;color:#94a3b8}
+}
+/* Spinner */
+.spin{display:inline-block;width:11px;height:11px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Status row */
+.status-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:28px}
+.retry-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:#fee2e2;color:#b91c1c;border-radius:4px;font-size:11px;font-weight:700}
+@media(prefers-color-scheme:dark){.retry-pill{background:#450a0a;color:#fca5a5}}
+/* Step list */
+.step-list{display:flex;flex-direction:column;gap:6px}
+.step-item{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:flex-start;gap:10px;font-size:13px;transition:border-color .2s}
+.step-item.s-pass{border-left:3px solid var(--success)}
+.step-item.s-fail{border-left:3px solid var(--error)}
+.step-item.s-run{border-left:3px solid var(--accent)}
+.step-icon{flex-shrink:0;line-height:1.4}
+.step-info{flex:1;min-width:0}
+.step-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-meta{font-size:11px;color:var(--muted);margin-top:2px}
+/* Result banner */
+.banner{padding:12px 16px;border-radius:var(--radius);font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+.banner-pass{background:#dcfce7;color:#15803d}
+.banner-fail{background:#fee2e2;color:#b91c1c}
+@media(prefers-color-scheme:dark){.banner-pass{background:#052e16;color:#86efac}.banner-fail{background:#450a0a;color:#fca5a5}}
+/* Result steps */
+.r-step{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:8px}
+.r-hdr{padding:9px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;user-select:none}
+.r-hdr:hover{background:var(--bg)}
+.r-dur{margin-left:auto;font-size:11px;color:var(--muted);font-weight:400}
+.r-body{padding:12px;border-top:1px solid var(--border);font-size:12px;display:none}
+.r-body.open{display:block}
+.r-body img{max-width:100%;border-radius:4px;margin-top:8px;border:1px solid var(--border)}
+.err-txt{color:var(--error);font-family:monospace;font-size:11px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
+.actions-row{display:flex;gap:8px}
+/* Empty */
+.empty{text-align:center;color:var(--muted);padding:48px 16px;font-size:13px;line-height:1.6}
+.empty svg{margin-bottom:12px;opacity:.3}
+</style>
+</head>
+<body>
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+  </svg>
+  <h1>AI Test Engine</h1>
+  <span class="tagline">LangGraph + DeepSeek + Playwright</span>
+</header>
+
+<div class="main">
+
+  <!-- LEFT: Input -->
+  <div class="panel">
+    <div class="panel-hdr">Test Input</div>
+    <div class="panel-body">
+      <div>
+        <label for="app-url">App URL</label>
+        <input type="text" id="app-url" placeholder="https://example.com" value="https://www.amazon.com">
+      </div>
+      <div>
+        <label for="steps">Test Steps <span style="font-weight:400">(one per line)</span></label>
+        <textarea id="steps" rows="10" placeholder="Navigate to the homepage&#10;Search for 'wireless headphones'&#10;Verify search results appear&#10;Click the first product&#10;Verify the product page loads"></textarea>
+      </div>
+      <div>
+        <button class="hint-toggle" onclick="toggleHints()">▶ Selector Hints (optional)</button>
+        <div id="hints-wrap" style="display:none;margin-top:8px">
+          <textarea id="hints" rows="3" placeholder='{"search": "#twotabsearchtab", "submit": "#nav-search-submit-button"}'></textarea>
+        </div>
+      </div>
+      <div class="row">
+        <div style="flex:1">
+          <label for="max-retries">Max Retries</label>
+          <input type="text" id="max-retries" value="3" style="width:60px">
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-primary" id="run-btn" onclick="executeTest()">▶ Execute</button>
+        <button class="btn btn-danger" id="cancel-btn" onclick="cancelRun()">✕ Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MIDDLE: Live Status -->
+  <div class="panel">
+    <div class="panel-hdr">Live Execution</div>
+    <div class="panel-body">
+      <div class="status-row">
+        <div id="status-badge" style="display:none"></div>
+        <div id="retry-pill" class="retry-pill" style="display:none"></div>
+      </div>
+      <div id="step-list">
+        <div class="empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div>Execute a test to see<br>live step-by-step results</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div class="panel">
+    <div class="panel-hdr">Results</div>
+    <div class="panel-body">
+      <div id="banner" style="display:none"></div>
+      <div id="result-steps"></div>
+      <div id="result-actions" class="actions-row" style="display:none">
+        <button class="btn-sm" onclick="downloadReport()">↓ Download Report</button>
+        <button class="btn-sm" onclick="reRun()">↺ Re-run</button>
+      </div>
+      <div id="results-empty" class="empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <div>Results will appear here<br>after execution completes</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentRunId = null;
+let currentEvtSrc = null;
+let finalReport = null;
+
+function toggleHints() {
+  const w = document.getElementById('hints-wrap');
+  const b = document.querySelector('.hint-toggle');
+  const open = w.style.display !== 'none';
+  w.style.display = open ? 'none' : 'block';
+  b.textContent = (open ? '▶' : '▼') + ' Selector Hints (optional)';
+}
+
+async function executeTest() {
+  const steps = document.getElementById('steps').value.trim().split('\n').filter(s => s.trim());
+  const appUrl = document.getElementById('app-url').value.trim();
+  const maxRetries = parseInt(document.getElementById('max-retries').value) || 3;
+  let hints = {};
+
+  try {
+    const h = document.getElementById('hints').value.trim();
+    if (h) hints = JSON.parse(h);
+  } catch { alert('Selector hints must be valid JSON'); return; }
+
+  if (!steps.length) { alert('Enter at least one test step'); return; }
+  if (!appUrl) { alert('Enter an App URL'); return; }
+
+  resetUI();
+  setRunning(true);
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps, app_url: appUrl, selector_hints: hints, max_retries: maxRetries })
+    });
+    const data = await res.json();
+    currentRunId = data.run_id;
+    openStream(currentRunId);
+  } catch(e) {
+    setRunning(false);
+    alert('Failed to start: ' + e.message);
+  }
+}
+
+function openStream(runId) {
+  if (currentEvtSrc) currentEvtSrc.close();
+  currentEvtSrc = new EventSource(`/api/run/${runId}/stream`);
+
+  currentEvtSrc.onmessage = e => {
+    try { handleEvent(JSON.parse(e.data)); } catch {}
+  };
+  currentEvtSrc.onerror = () => {
+    currentEvtSrc.close();
+    setRunning(false);
+  };
+}
+
+function handleEvent(data) {
+  if (data.__done__) {
+    setRunning(false);
+    if (currentEvtSrc) currentEvtSrc.close();
+    return;
+  }
+
+  for (const [, output] of Object.entries(data)) {
+    if (output.status) setStatus(output.status);
+    if (output.retry_count > 0) showRetry(output.retry_count);
+    if (output.step_results?.length) renderLiveSteps(output.step_results);
+    if (output.final_report?.passed !== undefined) showResults(output.final_report);
+    if (output.error_message) showError(output.error_message);
+  }
+}
+
+function showError(msg) {
+  const list = document.getElementById('step-list');
+  list.innerHTML = `<div style="padding:12px 14px;background:#fee2e2;border-radius:8px;color:#b91c1c;font-size:12px;font-family:monospace;white-space:pre-wrap;word-break:break-all;border:1px solid #fecaca">${esc(msg)}</div>`;
+}
+
+function setStatus(status) {
+  const el = document.getElementById('status-badge');
+  const labels = { queued:'Queued', parsing:'Parsing', generating:'Generating', running:'Running', retrying:'Retrying', completed:'Completed', failed:'Failed', cancelled:'Cancelled' };
+  const spinning = new Set(['parsing','generating','running','retrying']);
+  el.style.display = 'inline-flex';
+  el.className = `badge b-${status}`;
+  el.innerHTML = (spinning.has(status) ? '<span class="spin"></span>' : '') + (labels[status] || status);
+}
+
+function showRetry(n) {
+  const el = document.getElementById('retry-pill');
+  el.style.display = 'inline-flex';
+  el.textContent = `↺ Retry ${n}`;
+}
+
+function renderLiveSteps(steps) {
+  const list = document.getElementById('step-list');
+  list.innerHTML = '';
+  const ul = document.createElement('div');
+  ul.className = 'step-list';
+  steps.forEach((s, i) => {
+    const div = document.createElement('div');
+    const cls = s.passed === true ? 's-pass' : s.passed === false ? 's-fail' : 's-run';
+    const icon = s.passed === true ? '✅' : s.passed === false ? '❌' : '<span class="spin" style="margin-top:2px"></span>';
+    div.className = `step-item ${cls}`;
+    div.innerHTML = `<div class="step-icon">${icon}</div>
+      <div class="step-info">
+        <div class="step-desc">${esc(s.description || `Step ${i + 1}`)}</div>
+        <div class="step-meta">${s.duration_ms ? s.duration_ms + 'ms' : '…'}</div>
+      </div>`;
+    ul.appendChild(div);
+  });
+  list.appendChild(ul);
+}
+
+function showResults(report) {
+  finalReport = report;
+
+  const banner = document.getElementById('banner');
+  banner.style.display = 'flex';
+  banner.className = `banner ${report.passed ? 'banner-pass' : 'banner-fail'}`;
+  banner.innerHTML = `<span>${report.passed ? '✅' : '❌'}</span>
+    <span>${report.passed ? 'All Tests Passed' : 'Tests Failed'}</span>
+    <span style="margin-left:auto;font-size:12px;font-weight:500">${report.passed_steps}/${report.total_steps} steps · ${report.retry_count} retries</span>`;
+
+  const stepsEl = document.getElementById('result-steps');
+  stepsEl.innerHTML = '';
+  (report.step_results || []).forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'r-step';
+    div.innerHTML = `
+      <div class="r-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span>${s.passed ? '✅' : '❌'}</span>
+        <span>${esc(s.description || 'Step ' + (i + 1))}</span>
+        <span class="r-dur">${s.duration_ms || 0}ms</span>
+      </div>
+      <div class="r-body">
+        ${s.error ? `<div class="err-txt">${esc(s.error)}</div>` : ''}
+        ${s.screenshot ? `<img src="data:image/png;base64,${s.screenshot}" alt="screenshot">` : '<div style="color:var(--muted);font-size:12px">No screenshot</div>'}
+      </div>`;
+    stepsEl.appendChild(div);
+  });
+
+  document.getElementById('result-actions').style.display = 'flex';
+  document.getElementById('results-empty').style.display = 'none';
+}
+
+function downloadReport() {
+  if (!finalReport) return;
+  const blob = new Blob([JSON.stringify(finalReport, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `report-${currentRunId?.slice(0, 8) || 'run'}.json`;
+  a.click();
+}
+
+function reRun() { executeTest(); }
+
+async function cancelRun() {
+  if (!currentRunId) return;
+  await fetch(`/api/run/${currentRunId}`, { method: 'DELETE' }).catch(() => {});
+  if (currentEvtSrc) currentEvtSrc.close();
+  setRunning(false);
+  setStatus('cancelled');
+}
+
+function setRunning(on) {
+  document.getElementById('run-btn').disabled = on;
+  document.getElementById('cancel-btn').style.display = on ? 'block' : 'none';
+}
+
+function resetUI() {
+  document.getElementById('step-list').innerHTML = '<div class="empty"><div>Waiting for execution…</div></div>';
+  document.getElementById('status-badge').style.display = 'none';
+  document.getElementById('retry-pill').style.display = 'none';
+  document.getElementById('banner').style.display = 'none';
+  document.getElementById('result-steps').innerHTML = '';
+  document.getElementById('result-actions').style.display = 'none';
+  document.getElementById('results-empty').style.display = 'block';
+  finalReport = null;
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
