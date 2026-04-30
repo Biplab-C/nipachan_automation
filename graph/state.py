@@ -3,15 +3,28 @@ from typing import TypedDict
 
 class TestWorkflowState(TypedDict):
     run_id: str
-    raw_steps: list[str]
+    test_case_id: str
     app_url: str
-    selector_hints: dict
-    parsed_actions: list[dict]
-    generated_script: str
-    execution_result: dict
-    step_results: list[dict]
+    raw_steps: list
+
+    # Per-step execution
+    current_step_index: int
+    current_url: str
+    current_page_title: str
+    page_elements: list
+    step_cache: dict
+    retry_hint: str
+    current_action: dict
+    step_results: list
+
+    # Framework integration
+    page_registry: dict        # url_key → {class_name, filename, locators, methods}
+    current_page_key: str      # url_key of the page currently being interacted with
+    current_locators: dict     # locator constants for the current page object
+
+    # Execution control
+    highlight_elements: bool
     error_message: str
-    fix_suggestion: dict
     retry_count: int
     max_retries: int
     status: str

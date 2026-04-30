@@ -28,343 +28,706 @@
   }
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;font-size:14px}
-header{padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
-header h1{font-size:16px;font-weight:700}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;font-size:14px;overflow:hidden}
+header{padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);flex-shrink:0}
+header h1{font-size:15px;font-weight:700}
 .tagline{font-size:12px;color:var(--muted);margin-left:4px}
-.main{flex:1;display:grid;grid-template-columns:320px 1fr 360px;overflow:hidden}
+.main{flex:1;display:grid;grid-template-columns:280px 1fr 360px;overflow:hidden}
+
+/* ── Panels ── */
 .panel{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--panel)}
 .panel:last-child{border-right:none}
-.panel-hdr{padding:12px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);background:var(--panel)}
-.panel-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
-label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:var(--muted)}
-textarea,input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;transition:border-color .15s}
-textarea:focus,input:focus{outline:none;border-color:var(--accent)}
+.panel-hdr{padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);background:var(--panel);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.panel-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+
+/* ── Test Case List ── */
+.tc-list{display:flex;flex-direction:column;gap:6px}
+.tc-item{padding:9px 11px;border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color .15s,background .15s;display:flex;flex-direction:column;gap:5px}
+.tc-item:hover{border-color:var(--accent);background:var(--bg)}
+.tc-item.active{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 8%, var(--panel))}
+.tc-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tc-id{font-size:10px;font-weight:700;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--muted);flex-shrink:0}
+.tc-name{font-size:12px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc-bottom{display:flex;align-items:center;justify-content:space-between}
+.tc-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
+.tc-actions{display:flex;gap:4px;flex-shrink:0}
+.icon-btn{width:24px;height:24px;border:none;background:transparent;cursor:pointer;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted);transition:background .15s,color .15s;padding:0}
+.icon-btn:hover{background:var(--bg);color:var(--text)}
+.icon-btn.danger:hover{color:var(--error)}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;flex-shrink:0}
+.b-pending{background:#f1f5f9;color:#475569}
+.b-passed{background:#dcfce7;color:#15803d}
+.b-failed{background:#fee2e2;color:#b91c1c}
+.b-running{background:#dbeafe;color:#1d4ed8}
+.b-analyzing{background:#fef3c7;color:#b45309}
+.b-inspecting{background:#e0f2fe;color:#0369a1}
+.b-queued{background:#e0e7ff;color:#4338ca}
+.b-completed{background:#dcfce7;color:#15803d}
+.b-cancelled{background:#f1f5f9;color:#64748b}
+@media(prefers-color-scheme:dark){
+  .b-pending{background:#1e293b;color:#94a3b8}
+  .b-passed{background:#052e16;color:#86efac}
+  .b-failed{background:#450a0a;color:#fca5a5}
+  .b-running{background:#1e3a5f;color:#93c5fd}
+  .b-analyzing{background:#451a03;color:#fcd34d}
+  .b-inspecting{background:#0c2a3e;color:#7dd3fc}
+  .b-queued{background:#312e81;color:#a5b4fc}
+  .b-completed{background:#052e16;color:#86efac}
+  .b-cancelled{background:#1e293b;color:#94a3b8}
+}
+
+/* ── Forms ── */
+label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
+input[type=text],textarea{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit;transition:border-color .15s}
+input:focus,textarea:focus{outline:none;border-color:var(--accent)}
 textarea{resize:vertical}
-.row{display:flex;gap:8px;align-items:flex-end}
-.row input{flex:1}
-.btn{padding:9px 14px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s;width:100%}
+
+/* ── Buttons ── */
+.btn-row{display:flex;gap:8px}
+.btn{padding:8px 14px;border:none;border-radius:var(--radius);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s,opacity .15s}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover:not(:disabled){background:var(--accent-h)}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
-.btn-danger{background:var(--error);color:#fff;display:none;margin-top:8px}
-.btn-danger:hover{opacity:.88}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg)}
 .btn-sm{padding:6px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
 .btn-sm:hover{background:var(--bg)}
-.hint-toggle{font-size:12px;color:var(--accent);cursor:pointer;border:none;background:none;padding:0;font-weight:500}
-/* Badge */
-.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.b-queued{background:#e0e7ff;color:#4338ca}
-.b-parsing{background:#fef3c7;color:#b45309}
-.b-generating{background:#fef3c7;color:#b45309}
-.b-running{background:#dbeafe;color:#1d4ed8}
-.b-retrying{background:#fee2e2;color:#b91c1c}
-.b-completed{background:#dcfce7;color:#15803d}
-.b-failed{background:#fee2e2;color:#b91c1c}
-.b-cancelled{background:#f1f5f9;color:#64748b}
-@media(prefers-color-scheme:dark){
-  .b-queued{background:#312e81;color:#a5b4fc}.b-parsing,.b-generating{background:#451a03;color:#fcd34d}
-  .b-running{background:#1e3a5f;color:#93c5fd}.b-retrying,.b-failed{background:#450a0a;color:#fca5a5}
-  .b-completed{background:#052e16;color:#86efac}.b-cancelled{background:#1e293b;color:#94a3b8}
-}
-/* Spinner */
-.spin{display:inline-block;width:11px;height:11px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .65s linear infinite}
+.btn-new{background:var(--accent);color:#fff;border:none;border-radius:var(--radius);padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-new:hover{background:var(--accent-h)}
+
+/* ── Spinner ── */
+.spin{display:inline-block;width:10px;height:10px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .65s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-/* Status row */
-.status-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:28px}
-.retry-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:#fee2e2;color:#b91c1c;border-radius:4px;font-size:11px;font-weight:700}
-@media(prefers-color-scheme:dark){.retry-pill{background:#450a0a;color:#fca5a5}}
-/* Step list */
-.step-list{display:flex;flex-direction:column;gap:6px}
-.step-item{padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:flex-start;gap:10px;font-size:13px;transition:border-color .2s}
+
+/* ── Execution view ── */
+.exec-hdr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step-list{display:flex;flex-direction:column;gap:5px}
+.step-item{padding:8px 11px;border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:flex-start;gap:9px;font-size:13px}
 .step-item.s-pass{border-left:3px solid var(--success)}
 .step-item.s-fail{border-left:3px solid var(--error)}
 .step-item.s-run{border-left:3px solid var(--accent)}
-.step-icon{flex-shrink:0;line-height:1.4}
+.step-item.s-pending{border-left:3px solid var(--border)}
+.step-icon{flex-shrink:0;line-height:1.5;font-size:13px}
 .step-info{flex:1;min-width:0}
-.step-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-desc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
 .step-meta{font-size:11px;color:var(--muted);margin-top:2px}
-/* Result banner */
-.banner{padding:12px 16px;border-radius:var(--radius);font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+
+/* ── Results ── */
+.banner{padding:11px 14px;border-radius:var(--radius);font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
 .banner-pass{background:#dcfce7;color:#15803d}
 .banner-fail{background:#fee2e2;color:#b91c1c}
 @media(prefers-color-scheme:dark){.banner-pass{background:#052e16;color:#86efac}.banner-fail{background:#450a0a;color:#fca5a5}}
-/* Result steps */
-.r-step{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:8px}
-.r-hdr{padding:9px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:500;user-select:none}
+.r-step{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:7px}
+.r-hdr{padding:8px 11px;display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;font-weight:500;user-select:none}
 .r-hdr:hover{background:var(--bg)}
 .r-dur{margin-left:auto;font-size:11px;color:var(--muted);font-weight:400}
-.r-body{padding:12px;border-top:1px solid var(--border);font-size:12px;display:none}
+.r-body{padding:10px 11px;border-top:1px solid var(--border);font-size:11px;display:none}
 .r-body.open{display:block}
-.r-body img{max-width:100%;border-radius:4px;margin-top:8px;border:1px solid var(--border)}
-.err-txt{color:var(--error);font-family:monospace;font-size:11px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
+.r-body img{max-width:100%;border-radius:4px;margin-top:7px;border:1px solid var(--border)}
+.err-txt{color:var(--error);font-family:monospace;font-size:11px;margin-top:5px;white-space:pre-wrap;word-break:break-all}
+.locator-txt{font-family:monospace;font-size:11px;color:var(--muted);margin-top:4px;word-break:break-all}
 .actions-row{display:flex;gap:8px}
-/* Empty */
-.empty{text-align:center;color:var(--muted);padding:48px 16px;font-size:13px;line-height:1.6}
-.empty svg{margin-bottom:12px;opacity:.3}
+
+/* ── Empty states ── */
+.empty{text-align:center;color:var(--muted);padding:40px 16px;font-size:13px;line-height:1.7}
+.empty svg{margin-bottom:10px;opacity:.25}
+.empty-list{text-align:center;color:var(--muted);padding:32px 12px;font-size:12px;line-height:1.6}
+
+/* ── Section label ── */
+.section-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+
+/* ── Confirm dialog ── */
+.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .18s}
+.dialog-overlay.visible{opacity:1;pointer-events:all}
+.dialog-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px 28px 22px;width:360px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.18);transform:scale(.95);transition:transform .18s}
+.dialog-overlay.visible .dialog-box{transform:scale(1)}
+.dialog-icon{font-size:32px;margin-bottom:12px;text-align:center}
+.dialog-title{font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text)}
+.dialog-msg{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:22px}
+.dialog-tc-name{font-weight:600;color:var(--text);word-break:break-word}
+.dialog-actions{display:flex;gap:10px;justify-content:flex-end}
+.dialog-btn{padding:9px 20px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.dialog-btn:hover{opacity:.85}
+.dialog-btn-cancel{background:var(--bg);color:var(--text);border:1px solid var(--border)}
+.dialog-btn-delete{background:var(--error);color:#fff}
+
+/* ── Highlight toggle ── */
+.toggle-wrap{display:inline-block;cursor:pointer}
+.toggle-track{display:inline-flex;align-items:center;width:36px;height:20px;background:var(--border);border-radius:10px;padding:2px;transition:background .2s;cursor:pointer}
+.toggle-thumb{width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+#highlight-toggle:checked + .toggle-track{background:var(--accent)}
+#highlight-toggle:checked + .toggle-track .toggle-thumb{transform:translateX(16px)}
 </style>
 </head>
 <body>
+
+<!-- ── Confirm Delete Dialog ── -->
+<div class="dialog-overlay" id="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title-text">
+  <div class="dialog-box">
+    <div class="dialog-icon">🗑️</div>
+    <div class="dialog-title" id="dialog-title-text">Delete Test Case?</div>
+    <div class="dialog-msg">
+      You are about to permanently delete<br>
+      <span class="dialog-tc-name" id="dialog-tc-name"></span><br><br>
+      This will remove the test case and its associated file from the framework. <strong>This action cannot be undone.</strong>
+    </div>
+    <div class="dialog-actions">
+      <button class="dialog-btn dialog-btn-cancel" onclick="closeConfirmDialog()">No, Keep It</button>
+      <button class="dialog-btn dialog-btn-delete" id="dialog-confirm-btn">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
 <header>
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
   </svg>
   <h1>AI Test Engine</h1>
   <span class="tagline">LangGraph + DeepSeek + Playwright</span>
+  <label class="hl-toggle" title="Highlight each element before acting on it" style="margin-left:auto;display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);user-select:none">
+    <span>Highlight Elements</span>
+    <span class="toggle-wrap">
+      <input type="checkbox" id="highlight-toggle" style="display:none" onchange="updateHighlightLabel(this)">
+      <span class="toggle-track" id="hl-track">
+        <span class="toggle-thumb"></span>
+      </span>
+    </span>
+    <span id="hl-label" style="font-size:11px;font-weight:700;color:var(--muted)">OFF</span>
+  </label>
 </header>
 
 <div class="main">
 
-  <!-- LEFT: Input -->
+  <!-- LEFT PANEL: Test Case List -->
   <div class="panel">
-    <div class="panel-hdr">Test Input</div>
-    <div class="panel-body">
-      <div>
-        <label for="app-url">App URL</label>
-        <input type="text" id="app-url" placeholder="https://example.com" value="https://www.amazon.com">
-      </div>
-      <div>
-        <label for="steps">Test Steps <span style="font-weight:400">(one per line)</span></label>
-        <textarea id="steps" rows="10" placeholder="Navigate to the homepage&#10;Search for 'wireless headphones'&#10;Verify search results appear&#10;Click the first product&#10;Verify the product page loads"></textarea>
-      </div>
-      <div>
-        <button class="hint-toggle" onclick="toggleHints()">▶ Selector Hints (optional)</button>
-        <div id="hints-wrap" style="display:none;margin-top:8px">
-          <textarea id="hints" rows="3" placeholder='{"search": "#twotabsearchtab", "submit": "#nav-search-submit-button"}'></textarea>
-        </div>
-      </div>
-      <div class="row">
-        <div style="flex:1">
-          <label for="max-retries">Max Retries</label>
-          <input type="text" id="max-retries" value="3" style="width:60px">
-        </div>
-      </div>
-      <div>
-        <button class="btn btn-primary" id="run-btn" onclick="executeTest()">▶ Execute</button>
-        <button class="btn btn-danger" id="cancel-btn" onclick="cancelRun()">✕ Cancel</button>
+    <div class="panel-hdr">
+      <span>Test Cases</span>
+      <button class="btn-new" onclick="showAddForm()">+ New Test Case</button>
+    </div>
+    <div class="panel-body" style="padding:10px">
+      <div id="tc-list" class="tc-list">
+        <div class="empty-list">Loading test cases…</div>
       </div>
     </div>
   </div>
 
-  <!-- MIDDLE: Live Status -->
+  <!-- MIDDLE PANEL: Add/Edit Form or Execution View -->
   <div class="panel">
-    <div class="panel-hdr">Live Execution</div>
-    <div class="panel-body">
-      <div class="status-row">
-        <div id="status-badge" style="display:none"></div>
-        <div id="retry-pill" class="retry-pill" style="display:none"></div>
-      </div>
-      <div id="step-list">
-        <div class="empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <div>Execute a test to see<br>live step-by-step results</div>
-        </div>
+    <div class="panel-hdr">
+      <span id="mid-title">Select a Test Case</span>
+      <div id="exec-status" style="display:none"></div>
+    </div>
+    <div class="panel-body" id="mid-body">
+      <div class="empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+        </svg>
+        <div>Select a test case from the left panel<br>or create a new one to get started</div>
       </div>
     </div>
   </div>
 
-  <!-- RIGHT: Results -->
+  <!-- RIGHT PANEL: Results -->
   <div class="panel">
-    <div class="panel-hdr">Results</div>
-    <div class="panel-body">
-      <div id="banner" style="display:none"></div>
-      <div id="result-steps"></div>
+    <div class="panel-hdr">
+      <span>Results</span>
       <div id="result-actions" class="actions-row" style="display:none">
-        <button class="btn-sm" onclick="downloadReport()">↓ Download Report</button>
+        <button class="btn-sm" onclick="downloadReport()">↓ Report</button>
         <button class="btn-sm" onclick="reRun()">↺ Re-run</button>
       </div>
+    </div>
+    <div class="panel-body" id="right-body">
       <div id="results-empty" class="empty">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
         <div>Results will appear here<br>after execution completes</div>
       </div>
+      <div id="banner" style="display:none"></div>
+      <div id="result-steps"></div>
     </div>
   </div>
 
 </div>
 
 <script>
+// ── State ──────────────────────────────────────────────────────────────────
+let allTestCases = [];
+let selectedTcId = null;
 let currentRunId = null;
-let currentEvtSrc = null;
-let finalReport = null;
 
-function toggleHints() {
-  const w = document.getElementById('hints-wrap');
-  const b = document.querySelector('.hint-toggle');
-  const open = w.style.display !== 'none';
-  w.style.display = open ? 'none' : 'block';
-  b.textContent = (open ? '▶' : '▼') + ' Selector Hints (optional)';
+function updateHighlightLabel(cb) {
+  const label = document.getElementById('hl-label');
+  label.textContent = cb.checked ? 'ON' : 'OFF';
+  label.style.color = cb.checked ? 'var(--success)' : 'var(--muted)';
 }
 
-async function executeTest() {
-  const steps = document.getElementById('steps').value.trim().split('\n').filter(s => s.trim());
-  const appUrl = document.getElementById('app-url').value.trim();
-  const maxRetries = parseInt(document.getElementById('max-retries').value) || 3;
-  let hints = {};
+// Make the track clickable too
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('hl-track').addEventListener('click', () => {
+    const cb = document.getElementById('highlight-toggle');
+    cb.checked = !cb.checked;
+    updateHighlightLabel(cb);
+  });
+});
+let currentEvtSrc = null;
+let finalReport = null;
+let formMode = null; // 'add' | 'edit'
 
+// ── Init ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', loadTestCases);
+
+async function loadTestCases() {
   try {
-    const h = document.getElementById('hints').value.trim();
-    if (h) hints = JSON.parse(h);
-  } catch { alert('Selector hints must be valid JSON'); return; }
-
-  if (!steps.length) { alert('Enter at least one test step'); return; }
-  if (!appUrl) { alert('Enter an App URL'); return; }
-
-  resetUI();
-  setRunning(true);
-
-  try {
-    const res = await fetch('/api/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ steps, app_url: appUrl, selector_hints: hints, max_retries: maxRetries })
-    });
-    const data = await res.json();
-    currentRunId = data.run_id;
-    openStream(currentRunId);
+    const res = await fetch('/api/test-cases');
+    allTestCases = await res.json();
+    renderTcList();
   } catch(e) {
-    setRunning(false);
-    alert('Failed to start: ' + e.message);
+    document.getElementById('tc-list').innerHTML =
+      `<div class="empty-list" style="color:var(--error)">Failed to load test cases</div>`;
   }
 }
 
-function openStream(runId) {
+function renderTcList() {
+  const el = document.getElementById('tc-list');
+  if (!allTestCases.length) {
+    el.innerHTML = `<div class="empty-list">No test cases yet.<br>Click <strong>+ New Test Case</strong> to create one.</div>`;
+    return;
+  }
+  el.innerHTML = '';
+  allTestCases.forEach(tc => {
+    const div = document.createElement('div');
+    div.className = 'tc-item' + (tc.id === selectedTcId ? ' active' : '');
+    div.dataset.id = tc.id;
+    div.innerHTML = `
+      <div class="tc-top">
+        <span class="tc-id">${esc(tc.id)}</span>
+        <span class="tc-name">${esc(tc.name)}</span>
+        <span class="badge b-${tc.status || 'pending'}">${statusLabel(tc.status)}</span>
+      </div>
+      <div class="tc-bottom">
+        <span class="tc-url">${esc(tc.app_url || '')}</span>
+        <div class="tc-actions" onclick="event.stopPropagation()">
+          <button class="icon-btn" title="Execute" onclick="executeTestCase('${tc.id}')">&#9654;</button>
+          <button class="icon-btn" title="Edit" onclick="showEditForm('${tc.id}')">&#9998;</button>
+          <button class="icon-btn danger" title="Delete" onclick="deleteTestCase('${tc.id}')">&#128465;</button>
+        </div>
+      </div>`;
+    div.addEventListener('click', () => selectTestCase(tc.id));
+    el.appendChild(div);
+  });
+}
+
+function statusLabel(s) {
+  const map = { pending:'Pending', passed:'Passed', failed:'Failed', running:'Running',
+    analyzing:'Analyzing', inspecting:'Inspecting', queued:'Queued', completed:'Completed', cancelled:'Cancelled' };
+  return map[s] || (s || 'Pending');
+}
+
+// ── Select test case (show detail / execution view) ───────────────────────
+function selectTestCase(tcId) {
+  selectedTcId = tcId;
+  renderTcList();
+  const tc = allTestCases.find(t => t.id === tcId);
+  if (!tc) return;
+  showTcDetail(tc);
+}
+
+function showTcDetail(tc) {
+  setMidTitle(tc.name);
+  document.getElementById('exec-status').style.display = 'none';
+  const body = document.getElementById('mid-body');
+  const stepsHtml = (tc.steps || []).map((s, i) => {
+    const a = (tc.step_actions || [])[i] || {};
+    const locator = a.playwright_locator || '';
+    return `<div class="step-item s-pending">
+      <div class="step-icon" style="color:var(--muted)">&#8226;</div>
+      <div class="step-info">
+        <div class="step-desc">${esc(s)}</div>
+        ${locator ? `<div class="step-meta" style="font-family:monospace">${esc(locator)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div>
+      <div class="section-lbl">App URL</div>
+      <div style="font-size:13px;color:var(--accent)">${esc(tc.app_url || '')}</div>
+    </div>
+    <div>
+      <div class="section-lbl">${tc.steps.length} Steps</div>
+      <div class="step-list">${stepsHtml || '<div style="color:var(--muted);font-size:12px">No steps defined</div>'}</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="executeTestCase('${tc.id}')">&#9654; Execute</button>
+      <button class="btn btn-ghost" onclick="showEditForm('${tc.id}')">&#9998; Edit</button>
+    </div>`;
+}
+
+// ── Add / Edit Form ───────────────────────────────────────────────────────
+function showAddForm() {
+  formMode = 'add';
+  selectedTcId = null;
+  renderTcList();
+  setMidTitle('New Test Case');
+  document.getElementById('exec-status').style.display = 'none';
+  renderForm({ name: '', app_url: '', steps: [] });
+}
+
+function showEditForm(tcId) {
+  formMode = 'edit';
+  selectedTcId = tcId;
+  renderTcList();
+  const tc = allTestCases.find(t => t.id === tcId);
+  if (!tc) return;
+  setMidTitle('Edit — ' + tc.name);
+  document.getElementById('exec-status').style.display = 'none';
+  renderForm(tc);
+}
+
+function renderForm(tc) {
+  const body = document.getElementById('mid-body');
+  body.innerHTML = `
+    <div>
+      <label for="f-name">Test Case Name</label>
+      <input type="text" id="f-name" placeholder="e.g. Purchase Free Plan" value="${esc(tc.name || '')}">
+    </div>
+    <div>
+      <label for="f-url">App URL</label>
+      <input type="text" id="f-url" placeholder="https://example.com" value="${esc(tc.app_url || '')}">
+    </div>
+    <div>
+      <label for="f-steps">Test Steps <span style="font-weight:400;color:var(--muted)">(one per line)</span></label>
+      <textarea id="f-steps" rows="12" placeholder="Navigate to homepage&#10;Click on Sign In&#10;Fill username with testuser&#10;Verify dashboard is visible">${esc((tc.steps || []).join('\n'))}</textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveForm()">&#10003; Save</button>
+      <button class="btn btn-ghost" onclick="cancelForm()">Cancel</button>
+    </div>`;
+}
+
+async function saveForm() {
+  const name = document.getElementById('f-name').value.trim();
+  const app_url = document.getElementById('f-url').value.trim();
+  const stepsRaw = document.getElementById('f-steps').value;
+  const steps = stepsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+
+  if (!name) { alert('Test case name is required'); return; }
+  if (!app_url) { alert('App URL is required'); return; }
+  if (!steps.length) { alert('At least one step is required'); return; }
+
+  try {
+    if (formMode === 'add') {
+      const res = await fetch('/api/test-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, app_url, steps })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const newTc = await res.json();
+      await loadTestCases();
+      selectedTcId = newTc.id;
+      renderTcList();
+      showTcDetail(newTc);
+    } else {
+      const res = await fetch(`/api/test-cases/${selectedTcId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, app_url, steps })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const updated = await res.json();
+      await loadTestCases();
+      renderTcList();
+      showTcDetail(updated);
+    }
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+  }
+}
+
+function cancelForm() {
+  if (selectedTcId) {
+    const tc = allTestCases.find(t => t.id === selectedTcId);
+    if (tc) { showTcDetail(tc); return; }
+  }
+  setMidTitle('Select a Test Case');
+  document.getElementById('mid-body').innerHTML = `
+    <div class="empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
+      </svg>
+      <div>Select a test case from the left panel<br>or create a new one to get started</div>
+    </div>`;
+}
+
+// ── Confirm Delete Dialog ──────────────────────────────────────────────────
+let _pendingDeleteId = null;
+
+function deleteTestCase(tcId) {
+  const tc = allTestCases.find(t => t.id === tcId);
+  _pendingDeleteId = tcId;
+  document.getElementById('dialog-tc-name').textContent =
+    tc ? `"${tc.name}"  (${tc.id})` : tcId;
+  const overlay = document.getElementById('confirm-dialog');
+  overlay.classList.add('visible');
+  setTimeout(() => document.getElementById('dialog-confirm-btn').focus(), 50);
+  overlay.onclick = (e) => { if (e.target === overlay) closeConfirmDialog(); };
+  document.addEventListener('keydown', _dialogKey);
+}
+
+function _dialogKey(e) {
+  if (e.key === 'Escape') closeConfirmDialog();
+}
+
+function closeConfirmDialog() {
+  document.getElementById('confirm-dialog').classList.remove('visible');
+  document.removeEventListener('keydown', _dialogKey);
+  _pendingDeleteId = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('dialog-confirm-btn').addEventListener('click', async () => {
+    const tcId = _pendingDeleteId;
+    if (!tcId) return;
+    closeConfirmDialog();
+    try {
+      const res = await fetch(`/api/test-cases/${tcId}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 204) throw new Error(await res.text());
+      if (selectedTcId === tcId) { selectedTcId = null; cancelForm(); }
+      await loadTestCases();
+      renderTcList();
+    } catch(e) {
+      alert('Delete failed: ' + e.message);
+    }
+  });
+});
+
+// ── Execute ────────────────────────────────────────────────────────────────
+async function executeTestCase(tcId) {
+  selectedTcId = tcId;
+  renderTcList();
+
+  const tc = allTestCases.find(t => t.id === tcId);
+  if (!tc) return;
+
+  // Reset results panel
+  resetResults();
+
+  // Show execution view in middle panel
+  setMidTitle(tc.name);
+  showExecView(tc.steps || []);
+  setExecStatus('queued');
+
+  try {
+    const res = await fetch(`/api/test-cases/${tcId}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ max_retries: 3, highlight_elements: document.getElementById('highlight-toggle').checked })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    currentRunId = data.run_id;
+    openStream(currentRunId, tc.steps || []);
+  } catch(e) {
+    setExecStatus('failed');
+    alert('Execution failed to start: ' + e.message);
+  }
+}
+
+function showExecView(steps) {
+  const body = document.getElementById('mid-body');
+  const stepsHtml = steps.map((s, i) =>
+    `<div class="step-item s-pending" id="step-row-${i + 1}">
+      <div class="step-icon" style="color:var(--muted)">&#8226;</div>
+      <div class="step-info">
+        <div class="step-desc">${esc(s)}</div>
+        <div class="step-meta" id="step-meta-${i + 1}">Waiting…</div>
+      </div>
+    </div>`
+  ).join('');
+  body.innerHTML = `
+    <div class="step-list" id="exec-step-list">${stepsHtml}</div>`;
+}
+
+function setExecStatus(status) {
+  const el = document.getElementById('exec-status');
+  const spinning = new Set(['queued', 'running', 'analyzing', 'inspecting']);
+  el.style.display = 'inline-flex';
+  el.className = `badge b-${status}`;
+  el.innerHTML = (spinning.has(status) ? '<span class="spin"></span>' : '') + statusLabel(status);
+}
+
+// ── SSE Streaming ──────────────────────────────────────────────────────────
+function openStream(runId, rawSteps) {
   if (currentEvtSrc) currentEvtSrc.close();
-  currentEvtSrc = new EventSource(`/api/run/${runId}/stream`);
+  currentEvtSrc = new EventSource(`/api/runs/${runId}/stream`);
 
   currentEvtSrc.onmessage = e => {
-    try { handleEvent(JSON.parse(e.data)); } catch {}
+    try { handleEvent(JSON.parse(e.data), rawSteps); } catch(err) { console.error(err); }
   };
   currentEvtSrc.onerror = () => {
     currentEvtSrc.close();
-    setRunning(false);
+    setExecStatus('failed');
   };
 }
 
-function handleEvent(data) {
+function handleEvent(data, rawSteps) {
   if (data.__done__) {
-    setRunning(false);
     if (currentEvtSrc) currentEvtSrc.close();
+    const finalStatus = data.status || 'completed';
+    setExecStatus(finalStatus);
+    // Refresh test case list to reflect new status
+    loadTestCases().then(renderTcList);
     return;
   }
 
-  for (const [, output] of Object.entries(data)) {
-    if (output.status) setStatus(output.status);
-    if (output.retry_count > 0) showRetry(output.retry_count);
-    if (output.step_results?.length) renderLiveSteps(output.step_results);
-    if (output.final_report?.passed !== undefined) showResults(output.final_report);
-    if (output.error_message) showError(output.error_message);
+  for (const [node, output] of Object.entries(data)) {
+    if (!output || typeof output !== 'object') continue;
+
+    // Update status badge
+    if (output.status) setExecStatus(output.status);
+
+    // Update live steps
+    if (output.step_results && Array.isArray(output.step_results)) {
+      updateLiveSteps(output.step_results, rawSteps);
+    }
+
+    // Show final results
+    if (output.final_report && output.final_report.passed !== undefined) {
+      showResults(output.final_report);
+    }
+
+    // Error from error node
+    if (output.error_message) {
+      showErrorInResults(output.error_message);
+    }
+
+    // Stream-level error
+    if (node === 'error' && output.error_message) {
+      showErrorInResults(output.error_message);
+    }
   }
 }
 
-function showError(msg) {
-  const list = document.getElementById('step-list');
-  list.innerHTML = `<div style="padding:12px 14px;background:#fee2e2;border-radius:8px;color:#b91c1c;font-size:12px;font-family:monospace;white-space:pre-wrap;word-break:break-all;border:1px solid #fecaca">${esc(msg)}</div>`;
-}
-
-function setStatus(status) {
-  const el = document.getElementById('status-badge');
-  const labels = { queued:'Queued', parsing:'Parsing', generating:'Generating', running:'Running', retrying:'Retrying', completed:'Completed', failed:'Failed', cancelled:'Cancelled' };
-  const spinning = new Set(['parsing','generating','running','retrying']);
-  el.style.display = 'inline-flex';
-  el.className = `badge b-${status}`;
-  el.innerHTML = (spinning.has(status) ? '<span class="spin"></span>' : '') + (labels[status] || status);
-}
-
-function showRetry(n) {
-  const el = document.getElementById('retry-pill');
-  el.style.display = 'inline-flex';
-  el.textContent = `↺ Retry ${n}`;
-}
-
-function renderLiveSteps(steps) {
-  const list = document.getElementById('step-list');
-  list.innerHTML = '';
-  const ul = document.createElement('div');
-  ul.className = 'step-list';
-  steps.forEach((s, i) => {
-    const div = document.createElement('div');
-    const cls = s.passed === true ? 's-pass' : s.passed === false ? 's-fail' : 's-run';
-    const icon = s.passed === true ? '✅' : s.passed === false ? '❌' : '<span class="spin" style="margin-top:2px"></span>';
-    div.className = `step-item ${cls}`;
-    div.innerHTML = `<div class="step-icon">${icon}</div>
-      <div class="step-info">
-        <div class="step-desc">${esc(s.description || `Step ${i + 1}`)}</div>
-        <div class="step-meta">${s.duration_ms ? s.duration_ms + 'ms' : '…'}</div>
-      </div>`;
-    ul.appendChild(div);
+function updateLiveSteps(stepResults, rawSteps) {
+  stepResults.forEach(s => {
+    const row = document.getElementById(`step-row-${s.step}`);
+    const meta = document.getElementById(`step-meta-${s.step}`);
+    if (!row) return;
+    row.className = 'step-item ' + (s.passed ? 's-pass' : s.error ? 's-fail' : 's-run');
+    const iconEl = row.querySelector('.step-icon');
+    if (iconEl) {
+      if (s.passed) iconEl.innerHTML = '&#10003;';
+      else if (s.error) iconEl.innerHTML = '&#10007;';
+      else iconEl.innerHTML = '<span class="spin"></span>';
+      iconEl.style.color = s.passed ? 'var(--success)' : s.error ? 'var(--error)' : 'var(--accent)';
+    }
+    if (meta) {
+      const dur = s.duration_ms ? s.duration_ms + 'ms' : '';
+      meta.textContent = s.error ? ('Error: ' + s.error.slice(0, 60)) : (dur || 'Running…');
+      if (s.error) meta.style.color = 'var(--error)';
+    }
   });
-  list.appendChild(ul);
+
+  // Mark current executing step (next after last passed)
+  const lastDone = Math.max(0, ...stepResults.map(s => s.step));
+  const nextIdx = lastDone + 1;
+  const nextRow = document.getElementById(`step-row-${nextIdx}`);
+  if (nextRow && !stepResults.find(s => s.step === nextIdx)) {
+    nextRow.className = 'step-item s-run';
+    const iconEl = nextRow.querySelector('.step-icon');
+    if (iconEl) { iconEl.innerHTML = '<span class="spin"></span>'; iconEl.style.color = 'var(--accent)'; }
+    const meta = document.getElementById(`step-meta-${nextIdx}`);
+    if (meta) meta.textContent = 'Analyzing…';
+  }
+}
+
+// ── Results Panel ──────────────────────────────────────────────────────────
+function resetResults() {
+  finalReport = null;
+  document.getElementById('banner').style.display = 'none';
+  document.getElementById('result-steps').innerHTML = '';
+  document.getElementById('result-actions').style.display = 'none';
+  document.getElementById('results-empty').style.display = 'block';
 }
 
 function showResults(report) {
   finalReport = report;
 
+  document.getElementById('results-empty').style.display = 'none';
+  document.getElementById('result-actions').style.display = 'flex';
+
   const banner = document.getElementById('banner');
   banner.style.display = 'flex';
   banner.className = `banner ${report.passed ? 'banner-pass' : 'banner-fail'}`;
-  banner.innerHTML = `<span>${report.passed ? '✅' : '❌'}</span>
-    <span>${report.passed ? 'All Tests Passed' : 'Tests Failed'}</span>
-    <span style="margin-left:auto;font-size:12px;font-weight:500">${report.passed_steps}/${report.total_steps} steps · ${report.retry_count} retries</span>`;
+  const retries = report.retry_count > 0 ? ` · ${report.retry_count} retries` : '';
+  banner.innerHTML = `
+    <span>${report.passed ? '&#10003;' : '&#10007;'}</span>
+    <span>${report.passed ? 'All Steps Passed' : 'Some Steps Failed'}</span>
+    <span style="margin-left:auto;font-size:11px;font-weight:500">${report.passed_steps}/${report.total_steps}${retries}</span>`;
 
   const stepsEl = document.getElementById('result-steps');
   stepsEl.innerHTML = '';
   (report.step_results || []).forEach((s, i) => {
     const div = document.createElement('div');
     div.className = 'r-step';
+    const icon = s.passed ? '&#10003;' : '&#10007;';
+    const iconColor = s.passed ? 'var(--success)' : 'var(--error)';
     div.innerHTML = `
       <div class="r-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
-        <span>${s.passed ? '✅' : '❌'}</span>
+        <span style="color:${iconColor}">${icon}</span>
         <span>${esc(s.description || 'Step ' + (i + 1))}</span>
         <span class="r-dur">${s.duration_ms || 0}ms</span>
       </div>
       <div class="r-body">
+        ${s.playwright_locator ? `<div class="locator-txt">${esc(s.action || 'click')} → ${esc(s.playwright_locator)}</div>` : ''}
+        ${s.reasoning ? `<div style="color:var(--muted);margin-top:4px">${esc(s.reasoning)}</div>` : ''}
         ${s.error ? `<div class="err-txt">${esc(s.error)}</div>` : ''}
-        ${s.screenshot ? `<img src="data:image/png;base64,${s.screenshot}" alt="screenshot">` : '<div style="color:var(--muted);font-size:12px">No screenshot</div>'}
+        ${s.screenshot ? `<img src="data:image/png;base64,${s.screenshot}" alt="screenshot step ${i + 1}">` : '<div style="color:var(--muted)">No screenshot</div>'}
       </div>`;
     stepsEl.appendChild(div);
   });
-
-  document.getElementById('result-actions').style.display = 'flex';
-  document.getElementById('results-empty').style.display = 'none';
 }
 
+function showErrorInResults(msg) {
+  document.getElementById('results-empty').style.display = 'none';
+  const stepsEl = document.getElementById('result-steps');
+  stepsEl.innerHTML = `<div style="padding:12px;background:#fee2e2;border-radius:8px;color:#b91c1c;font-size:11px;font-family:monospace;white-space:pre-wrap;word-break:break-all;border:1px solid #fecaca">${esc(msg)}</div>`;
+}
+
+// ── Download / Re-run ──────────────────────────────────────────────────────
 function downloadReport() {
   if (!finalReport) return;
-  const blob = new Blob([JSON.stringify(finalReport, null, 2)], { type: 'application/json' });
+  // Strip large screenshots for JSON download
+  const clean = JSON.parse(JSON.stringify(finalReport));
+  (clean.step_results || []).forEach(s => { delete s.screenshot; });
+  const blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `report-${currentRunId?.slice(0, 8) || 'run'}.json`;
+  a.download = `report-${selectedTcId || 'run'}-${Date.now()}.json`;
   a.click();
 }
 
-function reRun() { executeTest(); }
-
-async function cancelRun() {
-  if (!currentRunId) return;
-  await fetch(`/api/run/${currentRunId}`, { method: 'DELETE' }).catch(() => {});
-  if (currentEvtSrc) currentEvtSrc.close();
-  setRunning(false);
-  setStatus('cancelled');
+function reRun() {
+  if (selectedTcId) executeTestCase(selectedTcId);
 }
 
-function setRunning(on) {
-  document.getElementById('run-btn').disabled = on;
-  document.getElementById('cancel-btn').style.display = on ? 'block' : 'none';
-}
-
-function resetUI() {
-  document.getElementById('step-list').innerHTML = '<div class="empty"><div>Waiting for execution…</div></div>';
-  document.getElementById('status-badge').style.display = 'none';
-  document.getElementById('retry-pill').style.display = 'none';
-  document.getElementById('banner').style.display = 'none';
-  document.getElementById('result-steps').innerHTML = '';
-  document.getElementById('result-actions').style.display = 'none';
-  document.getElementById('results-empty').style.display = 'block';
-  finalReport = null;
+// ── Helpers ────────────────────────────────────────────────────────────────
+function setMidTitle(text) {
+  document.getElementById('mid-title').textContent = text;
 }
 
 function esc(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 </script>
 </body>

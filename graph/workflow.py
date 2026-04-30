@@ -2,37 +2,44 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from graph.state import TestWorkflowState
-from graph.nodes import parse_node, generate_node, execute_node, analyze_error_node, finalize_node
-from graph.edges import route_after_execution, route_after_analysis
+from graph.nodes import (
+    launch_browser_node,
+    inspect_page_node,
+    generate_page_object_node,
+    analyze_step_node,
+    execute_step_node,
+    finalize_node,
+)
+from graph.edges import route_after_execute
 
 
 def build_workflow():
     graph = StateGraph(TestWorkflowState)
 
-    graph.add_node("parse", parse_node)
-    graph.add_node("generate", generate_node)
-    graph.add_node("execute", execute_node)
-    graph.add_node("analyze_error", analyze_error_node)
+    graph.add_node("launch_browser", launch_browser_node)
+    graph.add_node("inspect_page", inspect_page_node)
+    graph.add_node("generate_page_object", generate_page_object_node)
+    graph.add_node("analyze_step", analyze_step_node)
+    graph.add_node("execute_step", execute_step_node)
     graph.add_node("finalize", finalize_node)
 
-    graph.set_entry_point("parse")
-
-    graph.add_edge("parse", "generate")
-    graph.add_edge("generate", "execute")
+    graph.set_entry_point("launch_browser")
+    graph.add_edge("launch_browser", "inspect_page")
+    graph.add_edge("inspect_page", "generate_page_object")
+    graph.add_edge("generate_page_object", "analyze_step")
+    graph.add_edge("analyze_step", "execute_step")
     graph.add_conditional_edges(
-        "execute",
-        route_after_execution,
-        {"finalize": "finalize", "analyze_error": "analyze_error"},
-    )
-    graph.add_conditional_edges(
-        "analyze_error",
-        route_after_analysis,
-        {"generate": "generate", "finalize": "finalize"},
+        "execute_step",
+        route_after_execute,
+        {
+            "inspect_page": "inspect_page",
+            "analyze_step": "analyze_step",
+            "finalize": "finalize",
+        },
     )
     graph.add_edge("finalize", END)
 
-    checkpointer = MemorySaver()
-    return graph.compile(checkpointer=checkpointer)
+    return graph.compile(checkpointer=MemorySaver())
 
 
 workflow = build_workflow()
