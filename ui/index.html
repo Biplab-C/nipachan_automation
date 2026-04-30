@@ -159,6 +159,7 @@ textarea{resize:vertical}
 .toggle-thumb{width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
 #highlight-toggle:checked + .toggle-track{background:var(--accent)}
 #highlight-toggle:checked + .toggle-track .toggle-thumb{transform:translateX(16px)}
+.toggle-track{cursor:pointer}
 </style>
 </head>
 <body>
@@ -186,16 +187,14 @@ textarea{resize:vertical}
   </svg>
   <h1>AI Test Engine</h1>
   <span class="tagline">LangGraph + DeepSeek + Playwright</span>
-  <label class="hl-toggle" title="Highlight each element before acting on it" style="margin-left:auto;display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);user-select:none">
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--muted);user-select:none" title="Highlight each element before acting on it">
     <span>Highlight Elements</span>
-    <span class="toggle-wrap">
-      <input type="checkbox" id="highlight-toggle" style="display:none" onchange="updateHighlightLabel(this)">
-      <span class="toggle-track" id="hl-track">
-        <span class="toggle-thumb"></span>
-      </span>
+    <input type="checkbox" id="highlight-toggle" style="display:none" checked>
+    <span class="toggle-track" id="hl-track" onclick="toggleHighlight()">
+      <span class="toggle-thumb"></span>
     </span>
-    <span id="hl-label" style="font-size:11px;font-weight:700;color:var(--muted)">OFF</span>
-  </label>
+    <span id="hl-label" style="font-size:11px;font-weight:700;color:var(--success)">ON</span>
+  </div>
 </header>
 
 <div class="main">
@@ -260,20 +259,13 @@ let allTestCases = [];
 let selectedTcId = null;
 let currentRunId = null;
 
-function updateHighlightLabel(cb) {
+function toggleHighlight() {
+  const cb = document.getElementById('highlight-toggle');
+  cb.checked = !cb.checked;
   const label = document.getElementById('hl-label');
   label.textContent = cb.checked ? 'ON' : 'OFF';
   label.style.color = cb.checked ? 'var(--success)' : 'var(--muted)';
 }
-
-// Make the track clickable too
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('hl-track').addEventListener('click', () => {
-    const cb = document.getElementById('highlight-toggle');
-    cb.checked = !cb.checked;
-    updateHighlightLabel(cb);
-  });
-});
 let currentEvtSrc = null;
 let finalReport = null;
 let formMode = null; // 'add' | 'edit'

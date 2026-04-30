@@ -33,11 +33,11 @@ def _load_registry() -> dict:
 
 def _next_tc_id(reg: dict) -> str:
     """Return the lowest available TC ID (fills gaps left by deleted cases)."""
-    existing = set(reg.get("cases", {}).keys())
+    existing = {k.upper() for k in reg.get("cases", {}).keys()}
     i = 1
-    while f"tc_{i:03d}" in existing:
+    while f"TC_{i:03d}" in existing:
         i += 1
-    return f"tc_{i:03d}"
+    return f"TC_{i:03d}"
 
 
 def _save_registry(reg: dict):

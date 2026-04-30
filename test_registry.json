@@ -1,10 +1,10 @@
 {
   "next_id": 3,
   "cases": {
-    "tc_001": {
-      "id": "tc_001",
-      "name": "Purchase Free plan",
-      "filename": "tc_001_purchase_free_plan.py",
+    "TC_001": {
+      "id": "TC_001",
+      "name": "Check Shopping List",
+      "filename": "TC_001_check_shopping_list.py",
       "app_url": "https://www.heb.com/",
       "steps": [
         "Verify Shopping List link is there",
@@ -25,11 +25,11 @@
         {
           "playwright_locator": "#searchGridHeader",
           "action": "assert_text",
-          "value": "Cake"
+          "value": "cake"
         }
       ],
       "status": "passed",
-      "created_at": "2026-04-30T23:18:09.249283"
+      "created_at": "2026-04-30T23:30:07.185643"
     }
   }
 }
