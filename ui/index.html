@@ -138,6 +138,22 @@ textarea{resize:vertical}
 /* ── Section label ── */
 .section-lbl{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
 
+/* ── Save progress dialog ── */
+.progress-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9998;opacity:0;pointer-events:none;transition:opacity .18s}
+.progress-overlay.visible{opacity:1;pointer-events:all}
+.progress-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;width:420px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.progress-title{font-size:15px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.progress-steps{display:flex;flex-direction:column;gap:10px}
+.progress-step{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;font-size:13px;background:var(--bg);border:1px solid var(--border);transition:all .2s}
+.progress-step.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.progress-step.done{border-color:var(--success);background:color-mix(in srgb,var(--success) 8%,var(--panel))}
+.progress-step.error{border-color:var(--error);background:color-mix(in srgb,var(--error) 8%,var(--panel))}
+.progress-step-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center;display:flex;align-items:center;justify-content:center}
+.progress-step.active .progress-step-icon::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:spin .65s linear infinite}
+.progress-step-text{flex:1}
+.progress-step-label{font-weight:600;font-size:12px;color:var(--muted);margin-bottom:2px}
+.progress-step-msg{font-size:12px;color:var(--text)}
+
 /* ── Confirm dialog ── */
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;opacity:0;pointer-events:none;transition:opacity .18s}
 .dialog-overlay.visible{opacity:1;pointer-events:all}
@@ -163,6 +179,53 @@ textarea{resize:vertical}
 </style>
 </head>
 <body>
+
+<!-- ── Save Progress Dialog ── -->
+<div class="progress-overlay" id="save-progress-overlay">
+  <div class="progress-box">
+    <div class="progress-title">
+      <span class="spin" id="save-progress-spinner"></span>
+      <span id="save-progress-title">Creating Test Case</span>
+    </div>
+    <div class="progress-steps" id="save-progress-steps">
+      <div class="progress-step" id="ps-creating">
+        <div class="progress-step-icon">⏳</div>
+        <div class="progress-step-text">
+          <div class="progress-step-label">Step 1</div>
+          <div class="progress-step-msg">Reserving test case ID…</div>
+        </div>
+      </div>
+      <div class="progress-step" id="ps-dedup">
+        <div class="progress-step-icon">⏳</div>
+        <div class="progress-step-text">
+          <div class="progress-step-label">Step 2</div>
+          <div class="progress-step-msg">Checking for duplicate steps…</div>
+        </div>
+      </div>
+      <div class="progress-step" id="ps-feature">
+        <div class="progress-step-icon">⏳</div>
+        <div class="progress-step-text">
+          <div class="progress-step-label">Step 3</div>
+          <div class="progress-step-msg">Writing Gherkin feature file…</div>
+        </div>
+      </div>
+      <div class="progress-step" id="ps-steps">
+        <div class="progress-step-icon">⏳</div>
+        <div class="progress-step-text">
+          <div class="progress-step-label">Step 4</div>
+          <div class="progress-step-msg">Creating step definitions…</div>
+        </div>
+      </div>
+      <div class="progress-step" id="ps-data">
+        <div class="progress-step-icon">⏳</div>
+        <div class="progress-step-text">
+          <div class="progress-step-label">Step 5</div>
+          <div class="progress-step-msg">Creating test data JSON…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ── Confirm Delete Dialog ── -->
 <div class="dialog-overlay" id="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title-text">
@@ -217,6 +280,9 @@ textarea{resize:vertical}
     <div class="panel-hdr">
       <span id="mid-title">Select a Test Case</span>
       <div id="exec-status" style="display:none"></div>
+      <button id="stop-btn" onclick="stopRun()"
+        style="display:none;padding:4px 12px;border:1px solid var(--error);border-radius:6px;background:transparent;color:var(--error);font-size:12px;font-weight:600;cursor:pointer"
+        title="Finish current step then stop">⏹ Stop</button>
     </div>
     <div class="panel-body" id="mid-body">
       <div class="empty">
@@ -412,20 +478,11 @@ async function saveForm() {
   if (!app_url) { alert('App URL is required'); return; }
   if (!steps.length) { alert('At least one step is required'); return; }
 
-  try {
-    if (formMode === 'add') {
-      const res = await fetch('/api/test-cases', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, app_url, steps })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const newTc = await res.json();
-      await loadTestCases();
-      selectedTcId = newTc.id;
-      renderTcList();
-      showTcDetail(newTc);
-    } else {
+  if (formMode === 'add') {
+    await saveWithProgress({ name, app_url, steps });
+  } else {
+    // Edit: no BDD pipeline needed, plain PUT
+    try {
       const res = await fetch(`/api/test-cases/${selectedTcId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -436,9 +493,9 @@ async function saveForm() {
       await loadTestCases();
       renderTcList();
       showTcDetail(updated);
+    } catch(e) {
+      alert('Save failed: ' + e.message);
     }
-  } catch(e) {
-    alert('Save failed: ' + e.message);
   }
 }
 
@@ -455,6 +512,142 @@ function cancelForm() {
       </svg>
       <div>Select a test case from the left panel<br>or create a new one to get started</div>
     </div>`;
+}
+
+// ── Save Progress Dialog ───────────────────────────────────────────────────
+
+// Maps SSE status → {row id, done-trigger status}
+const PS_MAP = [
+  { key: 'creating', doneKey: 'creating_done', id: 'ps-creating', label: 'Step 1', hint: 'Reserving test case ID…'       },
+  { key: 'dedup',    doneKey: 'dedup_done',    id: 'ps-dedup',    label: 'Step 2', hint: 'Scanning for duplicate steps…'  },
+  { key: 'feature',  doneKey: 'feature_done',  id: 'ps-feature',  label: 'Step 3', hint: 'Writing Gherkin feature file…'  },
+  { key: 'steps',    doneKey: 'steps_done',    id: 'ps-steps',    label: 'Step 4', hint: 'Creating step definitions…'     },
+  { key: 'data',     doneKey: 'data_done',     id: 'ps-data',     label: 'Step 5', hint: 'Creating test data JSON…'       },
+];
+
+function _psRow(id) { return document.getElementById(id); }
+function _psIcon(id) { return _psRow(id) && _psRow(id).querySelector('.progress-step-icon'); }
+function _psMsg(id)  { return _psRow(id) && _psRow(id).querySelector('.progress-step-msg'); }
+
+function showProgressModal() {
+  // Reset every step to idle state
+  PS_MAP.forEach(({ id, label, hint }) => {
+    const row = _psRow(id);
+    if (!row) return;
+    row.className = 'progress-step';
+    const icon = _psIcon(id); if (icon) icon.textContent = '⏳';
+    const lbl = row.querySelector('.progress-step-label'); if (lbl) lbl.textContent = label;
+    const msg = _psMsg(id); if (msg) msg.textContent = hint;
+  });
+  const title = document.getElementById('save-progress-title');
+  if (title) title.textContent = 'Creating Test Case…';
+  const spinner = document.getElementById('save-progress-spinner');
+  if (spinner) { spinner.style.display = 'inline-block'; spinner.className = 'spin'; }
+  document.getElementById('save-progress-overlay').classList.add('visible');
+}
+
+function hideProgressModal() {
+  document.getElementById('save-progress-overlay').classList.remove('visible');
+}
+
+function applyProgressEvent(evt) {
+  const status = evt.status || '';
+  const msg = evt.message || '';
+
+  // Active step starting
+  const active = PS_MAP.find(p => p.key === status);
+  if (active) {
+    const row = _psRow(active.id);
+    if (row) {
+      row.className = 'progress-step active';
+      const icon = _psIcon(active.id);
+      if (icon) { icon.textContent = ''; icon.className = 'progress-step-icon'; }
+      const m = _psMsg(active.id); if (m) m.textContent = msg || active.hint;
+    }
+    return;
+  }
+
+  // Step completed
+  const done = PS_MAP.find(p => p.doneKey === status);
+  if (done) {
+    const row = _psRow(done.id);
+    if (row) {
+      row.className = 'progress-step done';
+      const icon = _psIcon(done.id); if (icon) { icon.innerHTML = '✓'; icon.style.cssText = ''; icon.className = 'progress-step-icon'; }
+      const m = _psMsg(done.id); if (m) m.textContent = msg;
+    }
+    return;
+  }
+
+  if (status === 'done') {
+    // Mark any still-pending as done
+    PS_MAP.forEach(({ id }) => {
+      const row = _psRow(id);
+      if (row && row.className === 'progress-step') {
+        row.className = 'progress-step done';
+        const icon = _psIcon(id); if (icon) { icon.innerHTML = '✓'; icon.className = 'progress-step-icon'; }
+      }
+    });
+    const title = document.getElementById('save-progress-title');
+    if (title) title.textContent = '✓ Created Successfully!';
+    const spinner = document.getElementById('save-progress-spinner');
+    if (spinner) { spinner.style.display = 'none'; }
+  }
+}
+
+async function saveWithProgress(payload) {
+  showProgressModal();
+  // Yield to browser paint so modal renders before fetch starts
+  await new Promise(r => requestAnimationFrame(r));
+
+  const main = document.querySelector('.main');
+  if (main) { main.style.pointerEvents = 'none'; main.style.opacity = '0.45'; }
+
+  let createdTc = null;
+  try {
+    const res = await fetch('/api/test-cases/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() || '';
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data:')) continue;
+        try {
+          const evt = JSON.parse(line.slice(5).trim());
+          applyProgressEvent(evt);
+          if (evt.status === 'done') createdTc = evt.test_case || null;
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    console.error('saveWithProgress error:', e);
+  } finally {
+    if (main) { main.style.pointerEvents = ''; main.style.opacity = ''; }
+  }
+
+  if (createdTc) {
+    await loadTestCases();
+    selectedTcId = createdTc.id;
+    renderTcList();
+    showTcDetail(createdTc);
+    setTimeout(hideProgressModal, 2000);
+  } else {
+    setTimeout(hideProgressModal, 500);
+  }
 }
 
 // ── Confirm Delete Dialog ──────────────────────────────────────────────────
@@ -548,10 +741,24 @@ function showExecView(steps) {
 
 function setExecStatus(status) {
   const el = document.getElementById('exec-status');
+  const stopBtn = document.getElementById('stop-btn');
   const spinning = new Set(['queued', 'running', 'analyzing', 'inspecting']);
+  const active = spinning.has(status);
   el.style.display = 'inline-flex';
   el.className = `badge b-${status}`;
-  el.innerHTML = (spinning.has(status) ? '<span class="spin"></span>' : '') + statusLabel(status);
+  el.innerHTML = (active ? '<span class="spin"></span>' : '') + statusLabel(status);
+  if (stopBtn) stopBtn.style.display = active ? 'inline-block' : 'none';
+}
+
+async function stopRun() {
+  if (!currentRunId) return;
+  const btn = document.getElementById('stop-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Stopping after this step…'; }
+  try {
+    await fetch(`/api/runs/${currentRunId}/stop`, { method: 'POST' });
+  } catch(e) {
+    console.error('Stop failed:', e);
+  }
 }
 
 // ── SSE Streaming ──────────────────────────────────────────────────────────
@@ -573,6 +780,9 @@ function handleEvent(data, rawSteps) {
     if (currentEvtSrc) currentEvtSrc.close();
     const finalStatus = data.status || 'completed';
     setExecStatus(finalStatus);
+    // Reset stop button
+    const stopBtn = document.getElementById('stop-btn');
+    if (stopBtn) { stopBtn.style.display = 'none'; stopBtn.disabled = false; stopBtn.textContent = '⏹ Stop'; }
     // Refresh test case list to reflect new status
     loadTestCases().then(renderTcList);
     return;

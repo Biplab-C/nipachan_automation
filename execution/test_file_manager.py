@@ -108,7 +108,8 @@ def _write_test_file(case: dict):
     return filepath
 
 
-def create_test_case(name: str, steps: list, app_url: str) -> dict:
+def create_test_case(name: str, steps: list, app_url: str,
+                     feature_file: str = "", steps_file: str = "", data_file: str = "") -> dict:
     reg = _load_registry()
     tc_id = _next_tc_id(reg)
     filename = f"{tc_id}_{_slug(name)}.py"
@@ -119,6 +120,10 @@ def create_test_case(name: str, steps: list, app_url: str) -> dict:
         "app_url": app_url,
         "steps": steps,
         "step_actions": [],
+        "feature_file": feature_file,
+        "steps_file": steps_file,
+        "data_file": data_file,
+        "gherkin_steps": [],  # Populated by API after dedup agent runs
         "status": "pending",
         "created_at": datetime.now().isoformat(),
     }
@@ -130,7 +135,9 @@ def create_test_case(name: str, steps: list, app_url: str) -> dict:
 
 def update_test_case(tc_id: str, name: str = None, steps: list = None,
                      app_url: str = None, step_actions: list = None,
-                     status: str = None, write_file: bool = True) -> dict:
+                     status: str = None, write_file: bool = True,
+                     feature_file: str = None, steps_file: str = None,
+                     data_file: str = None, gherkin_steps: list = None) -> dict:
     reg = _load_registry()
     if tc_id not in reg["cases"]:
         raise KeyError(f"{tc_id} not found")
@@ -147,6 +154,14 @@ def update_test_case(tc_id: str, name: str = None, steps: list = None,
         case["step_actions"] = step_actions
     if status is not None:
         case["status"] = status
+    if feature_file is not None:
+        case["feature_file"] = feature_file
+    if steps_file is not None:
+        case["steps_file"] = steps_file
+    if data_file is not None:
+        case["data_file"] = data_file
+    if gherkin_steps is not None:
+        case["gherkin_steps"] = gherkin_steps
     _save_registry(reg)
     if write_file:
         _write_test_file(case)
@@ -158,9 +173,19 @@ def delete_test_case(tc_id: str):
     if tc_id not in reg["cases"]:
         raise KeyError(f"{tc_id} not found")
     case = reg["cases"].pop(tc_id)
-    test_file = _get_tests_dir() / case["filename"]
+
+    # Delete legacy pytest test file
+    test_file = _get_tests_dir() / case.get("filename", "")
     if test_file.exists():
         test_file.unlink()
+
+    # Delete BDD feature file + step definitions
+    from execution.bdd_manager import delete_bdd_files
+    delete_bdd_files(
+        feature_file=case.get("feature_file", ""),
+        steps_file=case.get("steps_file", ""),
+    )
+
     _save_registry(reg)
 
 

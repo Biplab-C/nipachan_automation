@@ -1,13 +1,34 @@
 import logging
+import re
 import time
 import traceback
 
 import agents.page_object_generator as pog
 import agents.step_analyzer as sa
 import execution.framework_manager as fm
-from execution.browser_controller import get_browser, close_browser
-from execution.test_file_manager import update_test_case
+import execution.bdd_manager as bdd
+from execution.browser_controller import get_browser, close_browser, BrowserDeadError, _browsers as _browsers_ref
+from execution.execution_signals import clear_stop, is_stop_requested
+from execution.test_file_manager import update_test_case, get_test_case
 from graph.state import TestWorkflowState
+
+# Playwright error phrases that mean the browser process is gone
+_BROWSER_DEAD_PHRASES = (
+    "target closed",
+    "browser has been closed",
+    "browser closed",
+    "page closed",
+    "context or browser has been closed",
+    "connection refused",
+    "session deleted because of page crash",
+    "execution context was destroyed",
+    "net::err",
+)
+
+
+def _is_browser_dead(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return isinstance(exc, BrowserDeadError) or any(p in msg for p in _BROWSER_DEAD_PHRASES)
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +55,29 @@ def launch_browser_node(state: TestWorkflowState) -> dict:
 # ── 2. Inspect page ───────────────────────────────────────────────────────────
 
 def inspect_page_node(state: TestWorkflowState) -> dict:
-    ctrl = get_browser(state["run_id"])
-    elements = ctrl.get_page_elements()
-    url = ctrl.current_url()
-    title = ctrl.get_page_title()
-    logger.info("Inspected '%s' — %d elements", url, len(elements))
-    return {
-        "page_elements": elements,
-        "current_url": url,
-        "current_page_title": title,
-        "status": "inspecting",
-    }
+    try:
+        ctrl = get_browser(state["run_id"])
+        elements = ctrl.get_page_elements()
+        url = ctrl.current_url()
+        title = ctrl.get_page_title()
+        logger.info("Inspected '%s' — %d elements", url, len(elements))
+        return {
+            "page_elements": elements,
+            "current_url": url,
+            "current_page_title": title,
+            "status": "inspecting",
+        }
+    except Exception as exc:
+        if _is_browser_dead(exc):
+            logger.warning("Browser dead during page inspection — forcing finalize")
+            # Signal finalize by exhausting retries
+            return {
+                "page_elements": [],
+                "retry_count": state.get("max_retries", 3),
+                "error_message": f"Browser closed: {exc}",
+                "status": "failed",
+            }
+        raise
 
 
 # ── 3. Generate / load page object ────────────────────────────────────────────
@@ -167,6 +200,7 @@ def execute_step_node(state: TestWorkflowState) -> dict:
     new_retry = state.get("retry_count", 0)
 
     try:
+        ctrl = get_browser(state["run_id"])  # Re-fetch in case state changed
         ctrl.execute_action(
             action=action.get("action", "click"),
             locator=action.get("playwright_locator", ""),
@@ -178,12 +212,20 @@ def execute_step_node(state: TestWorkflowState) -> dict:
         new_retry = 0
     except Exception as exc:
         result["error"] = str(exc)
-        logger.warning("Step %d FAILED: %s", idx + 1, exc)
+        if _is_browser_dead(exc):
+            logger.warning("Browser dead on step %d — routing to finalize immediately: %s", idx + 1, exc)
+            # Exhaust retries so route_after_execute sends us to finalize
+            new_retry = state.get("max_retries", 3)
+        else:
+            logger.warning("Step %d FAILED: %s", idx + 1, exc)
+            new_retry += 1
         try:
-            result["screenshot"] = ctrl.screenshot_b64()
+            # Best-effort screenshot — may also fail if browser is dead
+            ctrl = _browsers_ref.get(state["run_id"])
+            if ctrl and ctrl.is_alive():
+                result["screenshot"] = ctrl.screenshot_b64()
         except Exception:
             pass
-        new_retry += 1
 
     result["duration_ms"] = int((time.time() - start) * 1000)
 
@@ -215,31 +257,15 @@ def finalize_node(state: TestWorkflowState) -> dict:
     tc_id = state["test_case_id"]
     passed = bool(step_results) and all(s.get("passed") for s in step_results)
 
-    # Add discovered methods to page classes; dedup returns the actual name used
+    # Resolve url_key for any steps that have current_url but empty url_key
+    # (needed for write_test_file lookups — page class still exists, just no methods added)
     for r in step_results:
-        if not (r.get("passed") and r.get("method_name") and r.get("locator_constant")):
-            continue
-        # Always attempt add — add_method_to_page_class deduplicates via method_map safely
-
-        # Resolve url_key — fall back to current_url lookup if empty
-        url_key = r.get("url_key", "")
-        if not url_key and r.get("current_url"):
+        if not r.get("url_key") and r.get("current_url"):
             info = fm.get_page_class_for_url(r["current_url"])
             if info:
-                url_key = info["url_key"]
-                r["url_key"] = url_key  # Patch for write_test_file
-
-        if not url_key:
-            continue
-
-        actual_name = fm.add_method_to_page_class(
-            url_key=url_key,
-            method_name=r["method_name"],
-            locator_constant=r["locator_constant"],
-            action=r.get("action", "click"),
-            value=r.get("value", ""),
-        )
-        r["method_name"] = actual_name  # Use deduplicated name in test file
+                r["url_key"] = info["url_key"]
+                r["page_class"] = r.get("page_class") or info.get("class_name", "")
+                r["page_filename"] = r.get("page_filename") or info.get("filename", "")
 
     # Write test data JSON
     try:
@@ -264,7 +290,54 @@ def finalize_node(state: TestWorkflowState) -> dict:
     except Exception:
         pass
 
-    # 2. Write page-object test file last so it is never overwritten
+    # 2. Update BDD step definitions with locator-based WebActions implementations
+    try:
+        tc_info = get_test_case(tc_id)
+        steps_file = tc_info.get("steps_file", "")
+        gherkin_steps = tc_info.get("gherkin_steps", [])  # Ordered list matching raw_steps
+        step_registry = bdd._load_registry()
+
+        if steps_file and gherkin_steps:
+            for i, r in enumerate(step_results):
+                if not r.get("passed"):
+                    continue
+                if not r.get("locator_constant") or not r.get("page_class"):
+                    continue
+                if i >= len(gherkin_steps):
+                    continue
+
+                # Find the registered func_name via the Gherkin step text (index-matched)
+                gstep = gherkin_steps[i]
+                step_text = gstep.get("gherkin_step_text", "")
+                pattern_key = bdd._normalize(step_text)
+                reg_entry = step_registry.get(pattern_key, {})
+                func_name = reg_entry.get("function_name", "")
+
+                if not func_name:
+                    # Fallback: derive from step text as create_step_definitions does
+                    func_name = re.sub(r'"[^"]+"', "value", step_text)
+                    func_name = re.sub(r"[^a-z0-9]+", "_", func_name.lower()).strip("_")[:60]
+
+                page_mod = r.get("page_filename", "").replace(".py", "")
+                bdd.update_step_definition(
+                    steps_filename=steps_file,
+                    func_name=func_name,
+                    locator_constant=r.get("locator_constant", ""),
+                    action=r.get("action", "click"),
+                    value=r.get("value", ""),
+                    page_class=r["page_class"],
+                    page_module=page_mod,
+                )
+                bdd.mark_step_implemented(
+                    step_text=step_text,
+                    page_class=r["page_class"],
+                    method_name=r.get("locator_constant", ""),
+                    playwright_locator=r.get("playwright_locator", ""),
+                )
+    except Exception:
+        logger.warning("BDD step update failed:\n%s", traceback.format_exc())
+
+    # 3. Write framework page-object files (kept for direct pytest runs)
     data_filename = None
     test_filename = ""
     try:
@@ -273,6 +346,7 @@ def finalize_node(state: TestWorkflowState) -> dict:
     except Exception:
         logger.warning("Framework file writing failed:\n%s", traceback.format_exc())
 
+    clear_stop(state["run_id"])   # Clean up any stop signal for this run
     close_browser(state["run_id"])
 
     report = {

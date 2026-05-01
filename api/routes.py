@@ -13,6 +13,8 @@ from execution.test_file_manager import (
     create_test_case, update_test_case, delete_test_case,
     get_all_test_cases, get_test_case,
 )
+from execution import bdd_manager
+from agents import step_dedup_agent
 from graph.workflow import workflow
 
 router = APIRouter()
@@ -39,9 +41,170 @@ async def list_test_cases():
     return get_all_test_cases()
 
 
+@router.post("/test-cases/stream")
+async def add_test_case_stream(req: TestCaseCreate):
+    """
+    Streaming TC creation — yields SSE events for each sub-step so the UI
+    can show a live progress dialog. Uses same pipeline as the regular endpoint.
+    """
+    loop = asyncio.get_running_loop()
+
+    async def generate():
+        def _event(status: str, message: str, **extra) -> str:
+            payload = {"status": status, "message": message, **extra}
+            return f"data: {json.dumps(payload)}\n\n"
+
+        # 1 — Reserve TC_ID
+        yield _event("creating", "Creating test case ID…")
+        try:
+            case = await loop.run_in_executor(
+                executor, lambda: create_test_case(name=req.name, steps=req.steps, app_url=req.app_url)
+            )
+            tc_id = case["id"]
+            yield _event("creating_done", f"Test case {tc_id} reserved")
+        except Exception as exc:
+            yield _event("error", f"Failed to create test case: {exc}")
+            return
+
+        # 2 — Step dedup (AI call)
+        yield _event("dedup", f"Scanning {len(req.steps)} step(s) for duplicates…")
+        gherkin_steps = []
+        try:
+            existing_patterns = bdd_manager.get_all_step_patterns()
+            gherkin_steps = await loop.run_in_executor(
+                executor,
+                lambda: step_dedup_agent.analyze_steps(req.steps, existing_patterns),
+            )
+            new_count = sum(1 for s in gherkin_steps if s.get("is_new", True))
+            reused = len(gherkin_steps) - new_count
+            yield _event("dedup_done", f"{new_count} new step(s) · {reused} reused from existing library")
+        except Exception as exc:
+            gherkin_steps = _fallback_gherkin(req.steps)
+            yield _event("dedup_done", "Step analysis complete (fallback mode)")
+
+        # 3 — Feature file
+        yield _event("feature", "Writing Gherkin feature file…")
+        feature_file = ""
+        try:
+            feature_file = bdd_manager.create_feature_file(tc_id, req.name, req.app_url, gherkin_steps)
+            yield _event("feature_done", f"Feature file created: {feature_file}")
+        except Exception as exc:
+            yield _event("feature_done", f"Feature file skipped ({str(exc)[:50]})")
+
+        # 4 — Step definitions
+        yield _event("steps", "Creating placeholder step definitions…")
+        steps_file = ""
+        try:
+            if feature_file:
+                steps_file = bdd_manager.create_step_definitions(tc_id, req.name, feature_file, gherkin_steps)
+                new_count = sum(1 for s in gherkin_steps if s.get("is_new", True))
+                yield _event("steps_done", f"Step definitions created: {new_count} placeholder(s)")
+            else:
+                yield _event("steps_done", "Step definitions skipped (no feature file)")
+        except Exception as exc:
+            yield _event("steps_done", f"Step definitions skipped ({str(exc)[:50]})")
+
+        # 5 — Data JSON
+        yield _event("data", "Creating blank test data JSON…")
+        data_file = ""
+        try:
+            data_file = bdd_manager.create_data_json(tc_id, req.name)
+            yield _event("data_done", f"Data file created: {data_file}")
+        except Exception as exc:
+            yield _event("data_done", f"Data file skipped ({str(exc)[:50]})")
+
+        # 6 — Persist BDD file paths + gherkin steps for execution-time lookup
+        update_test_case(tc_id=tc_id, feature_file=feature_file,
+                         steps_file=steps_file, data_file=data_file,
+                         gherkin_steps=gherkin_steps, write_file=False)
+        final_case = get_test_case(tc_id)
+        yield _event("done", f"✓ {tc_id} created successfully!", test_case=final_case)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.post("/test-cases", status_code=201)
 async def add_test_case(req: TestCaseCreate):
-    return create_test_case(name=req.name, steps=req.steps, app_url=req.app_url)
+    """
+    BDD pipeline on TC creation:
+      1. Create registry entry to get TC_ID
+      2. Step dedup agent → Gherkin steps (reuse or new)
+      3. Feature file written
+      4. Step definitions written (placeholders for new steps)
+      5. Blank data JSON created
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Step 1: Reserve TC_ID in registry first (no files yet)
+    case = create_test_case(name=req.name, steps=req.steps, app_url=req.app_url)
+    tc_id = case["id"]
+
+    # Step 2: Step dedup + Gherkin conversion
+    feature_file = ""
+    steps_file = ""
+    data_file = ""
+    gherkin_steps = []
+    try:
+        existing_patterns = bdd_manager.get_all_step_patterns()
+        gherkin_steps = step_dedup_agent.analyze_steps(req.steps, existing_patterns)
+        logger.info("TC %s: %d steps analyzed (%d new)",
+                    tc_id, len(gherkin_steps), sum(1 for s in gherkin_steps if s.get("is_new", True)))
+    except Exception as exc:
+        logger.warning("Step dedup agent failed for %s: %s — falling back to plain placeholders", tc_id, exc)
+        # Fallback: treat every step as new, use basic Gherkin
+        gherkin_steps = _fallback_gherkin(req.steps)
+
+    # Step 3: Feature file
+    try:
+        feature_file = bdd_manager.create_feature_file(tc_id, req.name, req.app_url, gherkin_steps)
+    except Exception as exc:
+        logger.error("Feature file creation failed: %s", exc)
+
+    # Step 4: Step definitions (placeholders for new steps)
+    try:
+        if feature_file:
+            steps_file = bdd_manager.create_step_definitions(tc_id, req.name, feature_file, gherkin_steps)
+    except Exception as exc:
+        logger.error("Step definitions creation failed: %s", exc)
+
+    # Step 5: Blank data JSON (always)
+    try:
+        data_file = bdd_manager.create_data_json(tc_id, req.name)
+    except Exception as exc:
+        logger.error("Data JSON creation failed: %s", exc)
+
+    # Update registry with file paths
+    update_test_case(tc_id=tc_id, feature_file=feature_file, steps_file=steps_file,
+                     data_file=data_file, write_file=False)
+    return get_test_case(tc_id)
+
+
+def _fallback_gherkin(english_steps: list[str]) -> list[dict]:
+    """Basic Gherkin conversion when AI agent is unavailable."""
+    result = []
+    for i, step in enumerate(english_steps):
+        step_lower = step.lower()
+        if i == 0 or any(w in step_lower for w in ("navigate", "open", "go to", "launch")):
+            kw = "Given"
+        elif any(w in step_lower for w in ("verify", "check", "assert", "confirm", "should")):
+            kw = "Then" if i == 0 else "And"
+        else:
+            kw = "When" if i == 1 else "And"
+        result.append({
+            "english_step": step,
+            "gherkin_keyword": kw,
+            "gherkin_step_text": f"I {step[0].lower()}{step[1:]}",
+            "is_new": True,
+            "matched_pattern": "",
+            "step_type": "action",
+            "anticipated_method": "",
+        })
+    return result
 
 
 @router.get("/test-cases/{tc_id}")
@@ -181,8 +344,23 @@ async def get_run(run_id: str):
     return state
 
 
+@router.post("/runs/{run_id}/stop")
+async def stop_run(run_id: str):
+    """
+    Graceful stop: current step finishes, then the workflow routes to finalize.
+    The browser closes and files are written cleanly.
+    """
+    if run_id not in _runs:
+        raise HTTPException(status_code=404, detail="Run not found")
+    from execution.execution_signals import request_stop
+    request_stop(run_id)
+    _runs[run_id]["stop_requested"] = True
+    return {"stopping": True, "message": "Stop signal sent — current step will complete then execution will finalize"}
+
+
 @router.delete("/runs/{run_id}")
 async def cancel_run(run_id: str):
+    """Immediate cancel — breaks the SSE stream. Use /stop for graceful stop between steps."""
     if run_id not in _runs:
         raise HTTPException(status_code=404, detail="Not found")
     _runs[run_id]["cancelled"] = True

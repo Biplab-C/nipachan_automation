@@ -10,7 +10,7 @@ from graph.nodes import (
     execute_step_node,
     finalize_node,
 )
-from graph.edges import route_after_execute
+from graph.edges import route_after_execute, route_after_inspect
 
 
 def build_workflow():
@@ -25,7 +25,11 @@ def build_workflow():
 
     graph.set_entry_point("launch_browser")
     graph.add_edge("launch_browser", "inspect_page")
-    graph.add_edge("inspect_page", "generate_page_object")
+    graph.add_conditional_edges(
+        "inspect_page",
+        route_after_inspect,
+        {"generate_page_object": "generate_page_object", "finalize": "finalize"},
+    )
     graph.add_edge("generate_page_object", "analyze_step")
     graph.add_edge("analyze_step", "execute_step")
     graph.add_conditional_edges(

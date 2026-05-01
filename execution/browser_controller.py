@@ -126,6 +126,13 @@ class BrowserController:
     def get_page_title(self) -> str:
         return self.page.title()
 
+    def is_alive(self) -> bool:
+        """Return True if the browser and page are still usable."""
+        try:
+            return bool(self.page and not self.page.is_closed())
+        except Exception:
+            return False
+
     def close(self):
         try:
             if self._browser:
@@ -137,13 +144,30 @@ class BrowserController:
             logger.warning("Error closing browser: %s", e)
 
 
+class BrowserDeadError(RuntimeError):
+    """Raised when the browser process has died and cannot be recovered."""
+
+
 def get_browser(run_id: str, headless: bool = False, highlight: bool = False) -> BrowserController:
-    if run_id not in _browsers:
-        ctrl = BrowserController()
-        ctrl.launch(headless=headless)
-        ctrl.highlight = highlight
-        _browsers[run_id] = ctrl
-    return _browsers[run_id]
+    if run_id in _browsers:
+        ctrl = _browsers[run_id]
+        if ctrl.is_alive():
+            return ctrl
+        # Browser died unexpectedly — clean up, do NOT recreate
+        logger.warning("Browser for run %s is dead — removing from registry", run_id)
+        try:
+            ctrl.close()
+        except Exception:
+            pass
+        del _browsers[run_id]
+        raise BrowserDeadError(f"Browser closed unexpectedly for run {run_id}")
+
+    # Fresh browser for a new run
+    ctrl = BrowserController()
+    ctrl.launch(headless=headless)
+    ctrl.highlight = highlight
+    _browsers[run_id] = ctrl
+    return ctrl
 
 
 def close_browser(run_id: str):
