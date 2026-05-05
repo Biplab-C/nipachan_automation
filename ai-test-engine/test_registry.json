@@ -13,19 +13,9 @@
       ],
       "step_actions": [
         {
-          "playwright_locator": "a[aria-label='Shopping lists menu']",
+          "playwright_locator": "xpath=//a[normalize-space()='{item_text}']",
           "action": "assert_visible",
-          "value": ""
-        },
-        {
-          "playwright_locator": "#search-input",
-          "action": "fill_and_submit",
-          "value": "Cake"
-        },
-        {
-          "playwright_locator": "#searchGridHeader",
-          "action": "assert_text",
-          "value": "cake"
+          "value": "Shopping List"
         }
       ],
       "feature_file": "TC_001_check_shopping_list.feature",
@@ -35,11 +25,11 @@
         {
           "english_step": "Verify Shopping List link is there",
           "gherkin_keyword": "Then",
-          "gherkin_step_text": "I verify the \"Shopping List\" link is visible",
+          "gherkin_step_text": "I verify the \"Shopping List\" link is present",
           "is_new": true,
           "matched_pattern": "",
           "step_type": "assertion",
-          "anticipated_method": "verify_link_visible"
+          "anticipated_method": "verify_link_present"
         },
         {
           "english_step": "Search the Cake",
@@ -57,139 +47,11 @@
           "is_new": true,
           "matched_pattern": "",
           "step_type": "assertion",
-          "anticipated_method": "verify_item_name_contains"
-        }
-      ],
-      "status": "passed",
-      "created_at": "2026-05-01T23:32:49.132592"
-    },
-    "TC_002": {
-      "id": "TC_002",
-      "name": "Search flower",
-      "filename": "TC_002_search_flower.py",
-      "app_url": "https://www.heb.com/",
-      "steps": [
-        "Verify Shopping List link is there",
-        "Search the flower",
-        "Check the first item name has Flower in it"
-      ],
-      "step_actions": [
-        {
-          "playwright_locator": "a[aria-label='Shopping lists menu']",
-          "action": "assert_visible",
-          "value": ""
-        },
-        {
-          "playwright_locator": "#search-input",
-          "action": "fill_and_submit",
-          "value": "flower"
-        },
-        {
-          "playwright_locator": "#searchGridHeader",
-          "action": "assert_text",
-          "value": "Flower"
-        }
-      ],
-      "feature_file": "TC_002_search_flower.feature",
-      "steps_file": "TC_002_search_flower_steps.py",
-      "data_file": "TC_002_search_flower.json",
-      "gherkin_steps": [
-        {
-          "english_step": "Verify Shopping List link is there",
-          "gherkin_keyword": "Then",
-          "gherkin_step_text": "I verify the \"Shopping List\" link is visible",
-          "is_new": false,
-          "matched_pattern": "I verify the \"Shopping List\" link is visible",
-          "step_type": "assertion",
-          "anticipated_method": "verify_link_visible"
-        },
-        {
-          "english_step": "Search the flower",
-          "gherkin_keyword": "When",
-          "gherkin_step_text": "I search for \"flower\"",
-          "is_new": false,
-          "matched_pattern": "I search for \"Cake\"",
-          "step_type": "action",
-          "anticipated_method": "search_for"
-        },
-        {
-          "english_step": "Check the first item name has Flower in it",
-          "gherkin_keyword": "Then",
-          "gherkin_step_text": "I verify the first item name contains \"Flower\"",
-          "is_new": false,
-          "matched_pattern": "I verify the first item name contains \"cake\"",
-          "step_type": "assertion",
-          "anticipated_method": "verify_first_item_name_contains"
-        }
-      ],
-      "status": "passed",
-      "created_at": "2026-05-01T23:38:15.457484"
-    },
-    "TC_003": {
-      "id": "TC_003",
-      "name": "Click recipe link",
-      "filename": "TC_003_click_recipe_link.py",
-      "app_url": "https://www.heb.com/",
-      "steps": [
-        "Verify Recipe and Meals link is there",
-        "Click on Recipe and Meals",
-        "Go for Recipes",
-        "Validate the Seasonal favorites",
-        "Check if 5 items are there"
-      ],
-      "step_actions": [],
-      "feature_file": "TC_003_click_recipe_link.feature",
-      "steps_file": "TC_003_click_recipe_link_steps.py",
-      "data_file": "TC_003_click_recipe_link.json",
-      "gherkin_steps": [
-        {
-          "english_step": "Verify Recipe and Meals link is there",
-          "gherkin_keyword": "Given",
-          "gherkin_step_text": "I verify the \"Recipe and Meals\" link is visible",
-          "is_new": false,
-          "matched_pattern": "I verify the \"Shopping List\" link is visible",
-          "step_type": "assertion",
-          "anticipated_method": "verify_link_visible"
-        },
-        {
-          "english_step": "Click on it",
-          "gherkin_keyword": "When",
-          "gherkin_step_text": "I click on the \"Recipe and Meals\" link",
-          "is_new": true,
-          "matched_pattern": "",
-          "step_type": "action",
-          "anticipated_method": "click_link"
-        },
-        {
-          "english_step": "Go for Recipes",
-          "gherkin_keyword": "And",
-          "gherkin_step_text": "I search for \"Recipes\"",
-          "is_new": false,
-          "matched_pattern": "I search for \"Cake\"",
-          "step_type": "action",
-          "anticipated_method": "search_for"
-        },
-        {
-          "english_step": "Validate the Seasonal favorites",
-          "gherkin_keyword": "Then",
-          "gherkin_step_text": "I verify the \"Seasonal favorites\" link is visible",
-          "is_new": false,
-          "matched_pattern": "I verify the \"Shopping List\" link is visible",
-          "step_type": "assertion",
-          "anticipated_method": "verify_link_visible"
-        },
-        {
-          "english_step": "Check if 5 items are there",
-          "gherkin_keyword": "And",
-          "gherkin_step_text": "I verify there are 5 items",
-          "is_new": true,
-          "matched_pattern": "",
-          "step_type": "assertion",
-          "anticipated_method": "verify_item_count"
+          "anticipated_method": "verify_first_item_contains"
         }
       ],
       "status": "failed",
-      "created_at": "2026-05-01T23:51:12.359142"
+      "created_at": "2026-05-06T01:32:06.727249"
     }
   }
 }

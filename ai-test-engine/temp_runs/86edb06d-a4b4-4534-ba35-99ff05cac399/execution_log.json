@@ -1,0 +1,17 @@
+{
+  "run_id": "86edb06d-a4b4-4534-ba35-99ff05cac399",
+  "generated_at": "2026-05-06T01:36:57.359814",
+  "steps": [
+    {
+      "step": 1,
+      "description": "Verify Shopping List link is there",
+      "action": "assert_visible",
+      "locator_constant": "LINK_BY_TEXT",
+      "playwright_locator": "xpath=//a[normalize-space()='{item_text}']",
+      "value": "Shopping List",
+      "passed": false,
+      "error": "Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\nwaiting for locator(\"//a[normalize-space()='{item_text}']\").first to be visible\n",
+      "duration_ms": 40562
+    }
+  ]
+}

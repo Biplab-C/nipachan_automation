@@ -7,9 +7,13 @@ import agents.page_object_generator as pog
 import agents.step_analyzer as sa
 import execution.framework_manager as fm
 import execution.bdd_manager as bdd
+import locator_intelligence.locator_inventory_manager as lim
+from locator_intelligence.action_planner import build_action_plan, ActionPlan
+from locator_intelligence.models import PageLocatorInventory
 from execution.browser_controller import get_browser, close_browser, BrowserDeadError, _browsers as _browsers_ref
 from execution.execution_signals import clear_stop, is_stop_requested
 from execution.test_file_manager import update_test_case, get_test_case
+from execution import run_artifacts
 from graph.state import TestWorkflowState
 
 # Playwright error phrases that mean the browser process is gone
@@ -39,6 +43,12 @@ def launch_browser_node(state: TestWorkflowState) -> dict:
     logger.info("Launching browser for run %s", state["run_id"])
     ctrl = get_browser(state["run_id"], headless=False, highlight=state.get("highlight_elements", False))
     ctrl.navigate(state["app_url"])
+
+    # Set up run artifacts directory
+    run_id = state["run_id"]
+    artifacts_dir = str(run_artifacts.get_run_dir(run_id))
+    run_artifacts.cleanup_old_runs(keep_last=20)
+
     return {
         "current_url": ctrl.current_url(),
         "current_page_title": ctrl.get_page_title(),
@@ -46,6 +56,9 @@ def launch_browser_node(state: TestWorkflowState) -> dict:
         "step_cache": state.get("step_cache", {}),
         "page_registry": state.get("page_registry", {}),
         "current_locators": {},
+        "current_inventory": {},
+        "action_plan": {},
+        "run_artifacts_dir": artifacts_dir,
         "retry_count": 0,
         "retry_hint": "",
         "status": "running",
@@ -85,32 +98,74 @@ def inspect_page_node(state: TestWorkflowState) -> dict:
 def generate_page_object_node(state: TestWorkflowState) -> dict:
     url = state.get("current_url", "")
     title = state.get("current_page_title", "")
-    elements = state.get("page_elements", [])
 
+    # --- Locator Intelligence: build / reuse inventory ---
+    try:
+        ctrl = get_browser(state["run_id"])
+        page = ctrl.page
+
+        inventory: PageLocatorInventory = lim.build_inventory(page, url, title)
+        locators_dict = lim.get_locators_dict(inventory)
+        inventory_dict = inventory.to_dict()
+        logger.info(
+            "Inventory ready for %s: %d locators (%d validated)",
+            inventory.page_key,
+            len(inventory.locators),
+            len(inventory.get_validated()),
+        )
+    except Exception as exc:
+        logger.warning("Locator inventory build failed: %s — falling back to registry", exc)
+        inventory = None
+        inventory_dict = {}
+        locators_dict = {}
+
+    # --- Backward-compat: check framework registry for existing page class ---
     existing = fm.get_page_class_for_url(url)
     if existing:
-        logger.info("Reusing page class %s for %s", existing["class_name"], url)
-        registry = {**state.get("page_registry", {}), existing["url_key"]: existing}
+        # Support both old format (url_key) and new locator-intelligence format (page_key)
+        page_key_field = existing.get("url_key") or existing.get("page_key", "")
+        if not page_key_field:
+            page_key_field = fm._url_key(url)
+        logger.info("Reusing page class %s for %s", existing.get("class_name", ""), url)
+        # Merge inventory locators into existing page class if we got new ones
+        if locators_dict and inventory:
+            merged_locators = {**existing.get("locators", {}), **locators_dict}
+            existing["locators"] = merged_locators
+        registry = {**state.get("page_registry", {}), page_key_field: existing}
         return {
-            "current_page_key": existing["url_key"],
+            "current_page_key": page_key_field,
             "page_registry": registry,
             "current_locators": existing.get("locators", {}),
+            "current_inventory": inventory_dict,
             "status": "analyzing",
         }
 
     logger.info("Generating new page object for %s", url)
     try:
-        result = pog.generate_page_locators(url=url, page_title=title, elements=elements)
-        page_info = fm.create_page_class(
-            url=url,
-            class_name=result["class_name"],
-            locators=result["locators"],
-        )
+        if locators_dict and inventory:
+            # Use inventory locators directly — no LLM needed
+            page_info = fm.create_page_class(
+                url=url,
+                class_name=inventory.class_name,
+                locators=locators_dict,
+            )
+        else:
+            # Fall back to LLM-based generation
+            elements = state.get("page_elements", [])
+            result = pog.generate_page_locators(url=url, page_title=title, elements=elements)
+            page_info = fm.create_page_class(
+                url=url,
+                class_name=result["class_name"],
+                locators=result["locators"],
+            )
+            locators_dict = result["locators"]
+
         registry = {**state.get("page_registry", {}), page_info["url_key"]: page_info}
         return {
             "current_page_key": page_info["url_key"],
             "page_registry": registry,
             "current_locators": page_info["locators"],
+            "current_inventory": inventory_dict,
             "status": "analyzing",
         }
     except Exception as exc:
@@ -118,6 +173,7 @@ def generate_page_object_node(state: TestWorkflowState) -> dict:
         return {
             "current_page_key": "",
             "current_locators": {},
+            "current_inventory": inventory_dict,
             "status": "analyzing",
         }
 
@@ -134,33 +190,102 @@ def analyze_step_node(state: TestWorkflowState) -> dict:
     cache_key = f"{step}::{state.get('current_url', '')}"
     if cache_key in state.get("step_cache", {}) and not retry_hint:
         logger.info("Cache hit for step: %s", step)
-        return {"current_action": state["step_cache"][cache_key], "status": "analyzing"}
+        return {
+            "current_action": state["step_cache"][cache_key],
+            "action_plan": {},
+            "status": "analyzing",
+        }
 
     logger.info("Analyzing step %d: %s", idx + 1, step)
-    try:
-        if locators:
-            # Pass existing method_map so AI can reuse existing methods
-            method_map = fm.get_method_map(page_key)
-            action = sa.analyze_step_framework(
-                step=step,
-                locators_available=locators,
-                current_url=state.get("current_url", ""),
-                existing_methods=method_map,
-                retry_hint=retry_hint,
-            )
-        else:
-            action = sa.analyze_step(
-                step=step,
-                page_elements=state.get("page_elements", []),
-                current_url=state.get("current_url", ""),
-                retry_hint=retry_hint,
-            )
-    except Exception as exc:
-        logger.error("Step analysis failed: %s", exc)
-        action = {"action": "click", "playwright_locator": "", "value": "", "method_name": "unknown",
-                  "locator_constant": "", "is_existing_method": False, "reasoning": str(exc)}
 
-    return {"current_action": action, "status": "analyzing"}
+    # --- Try Locator Intelligence action planner first ---
+    action_plan_dict = {}
+    action = None
+
+    inventory_dict = state.get("current_inventory", {})
+    if inventory_dict and not retry_hint:
+        try:
+            inventory = PageLocatorInventory.from_dict(inventory_dict)
+            plan = build_action_plan(step, inventory)
+            if plan.is_executable() and plan.overall_confidence >= 0.75:
+                logger.info(
+                    "Action plan from inventory: intent=%s confidence=%.2f actions=%d",
+                    plan.intent, plan.overall_confidence, len(plan.atomic_actions),
+                )
+                action_plan_dict = plan.to_dict()
+                # Convert first atomic action to legacy action format for backward-compat
+                first = plan.atomic_actions[0]
+                action = {
+                    "action": first.action_type,
+                    "playwright_locator": first.locator_selector,
+                    "value": first.value,
+                    "method_name": _derive_method_name_from_plan(plan),
+                    "locator_constant": first.locator_name,
+                    "is_existing_method": False,
+                    "reasoning": f"inventory-based plan: {plan.intent}",
+                }
+            else:
+                logger.info(
+                    "Action plan confidence too low (%.2f) or no actions — falling back to LLM",
+                    plan.overall_confidence,
+                )
+        except Exception as exc:
+            logger.warning("Action planner failed: %s — falling back to LLM", exc)
+
+    # --- Fall back to existing LLM-based step analysis ---
+    if action is None:
+        try:
+            if locators:
+                method_map = fm.get_method_map(page_key)
+                action = sa.analyze_step_framework(
+                    step=step,
+                    locators_available=locators,
+                    current_url=state.get("current_url", ""),
+                    existing_methods=method_map,
+                    retry_hint=retry_hint,
+                )
+            else:
+                action = sa.analyze_step(
+                    step=step,
+                    page_elements=state.get("page_elements", []),
+                    current_url=state.get("current_url", ""),
+                    retry_hint=retry_hint,
+                )
+        except Exception as exc:
+            logger.error("Step analysis failed: %s", exc)
+            action = {
+                "action": "click",
+                "playwright_locator": "",
+                "value": "",
+                "method_name": "unknown",
+                "locator_constant": "",
+                "is_existing_method": False,
+                "reasoning": str(exc),
+            }
+
+    # Save action plan artifact if we have one
+    if action_plan_dict:
+        try:
+            run_artifacts.save_action_plan(state["run_id"], idx, action_plan_dict)
+        except Exception:
+            pass
+
+    return {
+        "current_action": action,
+        "action_plan": action_plan_dict,
+        "status": "analyzing",
+    }
+
+
+def _derive_method_name_from_plan(plan: ActionPlan) -> str:
+    """Derive a snake_case method name from the action plan."""
+    intent = plan.intent.lower().replace(" ", "_")
+    if plan.atomic_actions:
+        first = plan.atomic_actions[0]
+        if first.value:
+            value_slug = re.sub(r"[^a-z0-9]", "_", first.value.lower())[:20].strip("_")
+            return f"{intent}_{value_slug}"
+    return intent
 
 
 # ── 5. Execute step ───────────────────────────────────────────────────────────
@@ -169,6 +294,7 @@ def execute_step_node(state: TestWorkflowState) -> dict:
     idx = state["current_step_index"]
     step = state["raw_steps"][idx]
     action = state.get("current_action", {})
+    action_plan_dict = state.get("action_plan", {})
     ctrl = get_browser(state["run_id"])
     page_key = state.get("current_page_key", "")
     page_info = state.get("page_registry", {}).get(page_key, {})
@@ -199,13 +325,42 @@ def execute_step_node(state: TestWorkflowState) -> dict:
     new_cache = dict(state.get("step_cache", {}))
     new_retry = state.get("retry_count", 0)
 
+    # --- Determine whether to use atomic action plan or single action ---
+    atomic_actions = action_plan_dict.get("atomic_actions", []) if action_plan_dict else []
+    use_atomic = bool(atomic_actions) and len(atomic_actions) > 0
+
     try:
         ctrl = get_browser(state["run_id"])  # Re-fetch in case state changed
-        ctrl.execute_action(
-            action=action.get("action", "click"),
-            locator=action.get("playwright_locator", ""),
-            value=action.get("value", ""),
-        )
+
+        if use_atomic:
+            # Execute each atomic action in sequence; stop on first failure
+            logger.info("Executing %d atomic actions for step %d", len(atomic_actions), idx + 1)
+            for atom_idx, atom in enumerate(atomic_actions):
+                atom_type = atom.get("action_type", "click")
+                atom_selector = atom.get("locator_selector", "")
+                atom_value = atom.get("value", "")
+                logger.info(
+                    "  Atomic [%d/%d]: %s → %s (value=%r)",
+                    atom_idx + 1, len(atomic_actions), atom_type, atom_selector, atom_value,
+                )
+                ctrl.execute_action(
+                    action=atom_type,
+                    locator=atom_selector,
+                    value=atom_value,
+                )
+            # Use last atomic action's details for result reporting
+            last_atom = atomic_actions[-1]
+            result["action"] = last_atom.get("action_type", action.get("action", "click"))
+            result["playwright_locator"] = last_atom.get("locator_selector", action.get("playwright_locator", ""))
+            result["locator_constant"] = last_atom.get("locator_name", action.get("locator_constant", ""))
+        else:
+            # Single action path (legacy)
+            ctrl.execute_action(
+                action=action.get("action", "click"),
+                locator=action.get("playwright_locator", ""),
+                value=action.get("value", ""),
+            )
+
         result["passed"] = True
         result["screenshot"] = ctrl.screenshot_b64()
         new_cache[f"{step}::{state.get('current_url', '')}"] = action
@@ -255,6 +410,7 @@ def finalize_node(state: TestWorkflowState) -> dict:
     step_results = state.get("step_results", [])
     raw_steps = state.get("raw_steps", [])
     tc_id = state["test_case_id"]
+    run_id = state["run_id"]
     passed = bool(step_results) and all(s.get("passed") for s in step_results)
 
     # Resolve url_key for any steps that have current_url but empty url_key
@@ -278,7 +434,11 @@ def finalize_node(state: TestWorkflowState) -> dict:
     # 1. Update registry only (write_file=False prevents raw-locator overwrite)
     try:
         step_actions = [
-            {"playwright_locator": r.get("playwright_locator", ""), "action": r.get("action", ""), "value": r.get("value", "")}
+            {
+                "playwright_locator": r.get("playwright_locator", ""),
+                "action": r.get("action", ""),
+                "value": r.get("value", ""),
+            }
             for r in step_results
         ]
         update_test_case(
@@ -346,11 +506,38 @@ def finalize_node(state: TestWorkflowState) -> dict:
     except Exception:
         logger.warning("Framework file writing failed:\n%s", traceback.format_exc())
 
+    # 4. Save run artifacts: execution log and final action plan summary
+    try:
+        log_entries = [
+            {
+                "step": r.get("step"),
+                "description": r.get("description", ""),
+                "action": r.get("action", ""),
+                "locator_constant": r.get("locator_constant", ""),
+                "playwright_locator": r.get("playwright_locator", ""),
+                "value": r.get("value", ""),
+                "passed": r.get("passed", False),
+                "error": r.get("error"),
+                "duration_ms": r.get("duration_ms", 0),
+            }
+            for r in step_results
+        ]
+        run_artifacts.save_execution_log(run_id, log_entries)
+
+        # Save inventory diff info
+        inventory_dict = state.get("current_inventory", {})
+        if inventory_dict:
+            page_key = inventory_dict.get("page_key", "")
+            num_locators = len(inventory_dict.get("locators", {}))
+            run_artifacts.save_inventory_diff(run_id, [page_key] if page_key else [], num_locators)
+    except Exception:
+        logger.warning("Run artifact saving failed:\n%s", traceback.format_exc())
+
     clear_stop(state["run_id"])   # Clean up any stop signal for this run
     close_browser(state["run_id"])
 
     report = {
-        "run_id": state["run_id"],
+        "run_id": run_id,
         "test_case_id": tc_id,
         "passed": passed,
         "total_steps": len(raw_steps),
@@ -361,6 +548,7 @@ def finalize_node(state: TestWorkflowState) -> dict:
         "artifacts": {
             "test_file": test_filename,
             "data_file": data_filename,
+            "run_dir": state.get("run_artifacts_dir", ""),
         },
     }
 

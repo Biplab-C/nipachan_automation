@@ -1,3 +1,4 @@
+import re
 import time
 import logging
 from typing import Any, List, Optional
@@ -7,6 +8,8 @@ from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 from config.config import Config
 
 logger = logging.getLogger(__name__)
+
+_STRATEGY_PREFIXES = ("css=", "xpath=", "text=", "role=", "placeholder=", "label=", "test_id=")
 
 
 class WebActions:
@@ -56,6 +59,45 @@ class WebActions:
             pass  # Non-critical — never fail a test due to highlighting
 
     # ------------------------------------------------------------------
+    # Locator resolution (strategy-prefix aware)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def resolve_locator(page, locator_str: str):
+        """
+        Resolve strategy-prefixed locator strings to Playwright locators.
+        Supports: css=, xpath=, text=, role=, placeholder=, label=, test_id=
+        """
+        if locator_str.startswith("xpath="):
+            return page.locator(locator_str)
+        if locator_str.startswith("css="):
+            return page.locator(locator_str[4:])
+        if locator_str.startswith("text="):
+            return page.get_by_text(locator_str[5:], exact=False)
+        if locator_str.startswith("role="):
+            # role=button[name='Submit'] format
+            m = re.match(r"role=(\w+)(?:\[name=['\"]?([^'\"\\]]+)['\"]?\])?", locator_str)
+            if m:
+                role, name = m.group(1), m.group(2)
+                return page.get_by_role(role, name=name) if name else page.get_by_role(role)
+        if locator_str.startswith("placeholder="):
+            return page.get_by_placeholder(locator_str[12:])
+        if locator_str.startswith("label="):
+            return page.get_by_label(locator_str[6:])
+        if locator_str.startswith("test_id="):
+            return page.get_by_test_id(locator_str[8:])
+        # Default: treat as CSS selector
+        return page.locator(locator_str)
+
+    def _resolve(self, locator_str: str):
+        """Resolve a locator string using resolve_locator against self.page."""
+        return self.resolve_locator(self.page, locator_str)
+
+    def _has_prefix(self, locator_str: str) -> bool:
+        """Return True if the locator string carries a strategy prefix."""
+        return locator_str.startswith(_STRATEGY_PREFIXES)
+
+    # ------------------------------------------------------------------
     # Core retry engine
     # ------------------------------------------------------------------
 
@@ -102,7 +144,10 @@ class WebActions:
     def click(self, locator: str, timeout: int = Config.TIMEOUT) -> None:
         self._highlight(locator)
         def _action():
-            self.page.locator(locator).click(timeout=timeout)
+            if self._has_prefix(locator):
+                self._resolve(locator).click(timeout=timeout)
+            else:
+                self.page.locator(locator).click(timeout=timeout)
 
         self._execute_with_retry(f"click('{locator}')", _action)
 
@@ -133,7 +178,7 @@ class WebActions:
     ) -> None:
         self._highlight(locator)
         def _action():
-            el = self.page.locator(locator)
+            el = self._resolve(locator) if self._has_prefix(locator) else self.page.locator(locator)
             el.wait_for(state="visible", timeout=timeout)
             if clear_first:
                 el.clear()
@@ -210,7 +255,8 @@ class WebActions:
 
     def wait_for_visible(self, locator: str, timeout: int = Config.TIMEOUT) -> None:
         def _action():
-            self.page.locator(locator).wait_for(state="visible", timeout=timeout)
+            el = self._resolve(locator) if self._has_prefix(locator) else self.page.locator(locator)
+            el.wait_for(state="visible", timeout=timeout)
 
         self._execute_with_retry(f"wait_for_visible('{locator}')", _action)
 
@@ -281,7 +327,8 @@ class WebActions:
     def hover(self, locator: str, timeout: int = Config.TIMEOUT) -> None:
         self._highlight(locator)
         def _action():
-            self.page.locator(locator).hover(timeout=timeout)
+            el = self._resolve(locator) if self._has_prefix(locator) else self.page.locator(locator)
+            el.hover(timeout=timeout)
 
         self._execute_with_retry(f"hover('{locator}')", _action)
 

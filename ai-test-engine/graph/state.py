@@ -22,6 +22,11 @@ class TestWorkflowState(TypedDict):
     current_page_key: str      # url_key of the page currently being interacted with
     current_locators: dict     # locator constants for the current page object
 
+    # Locator Intelligence (new)
+    current_inventory: dict        # serialized PageLocatorInventory for current page
+    action_plan: dict              # current step's ActionPlan
+    run_artifacts_dir: str         # path to temp_runs/{run_id}/
+
     # Execution control
     highlight_elements: bool
     error_message: str
