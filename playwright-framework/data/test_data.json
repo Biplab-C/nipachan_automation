@@ -1,0 +1,33 @@
+{
+  "google_search": {
+    "base_url": "https://www.google.com",
+    "queries": [
+      {
+        "search_term": "Playwright Python automation",
+        "expected_in_title": "Playwright",
+        "expected_results_min": 1
+      },
+      {
+        "search_term": "pytest automation framework",
+        "expected_in_title": "pytest",
+        "expected_results_min": 1
+      },
+      {
+        "search_term": "Selenium vs Playwright comparison",
+        "expected_in_title": "Selenium",
+        "expected_results_min": 1
+      }
+    ]
+  },
+  "db_sample": {
+    "users": [
+      {"id": 1, "name": "Alice", "email": "alice@example.com", "role": "admin"},
+      {"id": 2, "name": "Bob", "email": "bob@example.com", "role": "user"},
+      {"id": 3, "name": "Charlie", "email": "charlie@example.com", "role": "user"}
+    ]
+  },
+  "validation_sample": {
+    "valid_roles": ["admin", "user", "manager"],
+    "email_pattern": "^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$"
+  }
+}

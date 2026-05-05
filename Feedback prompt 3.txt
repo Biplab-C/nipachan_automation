@@ -1,0 +1,12 @@
+Better
+
+1. Page object is created
+2. All the items are captured
+3. The functions are written
+
+But things to look into
+1. The tc_002_purchase_free_plan.py test case file is not utlizing these functions
+2. Step Purchase $0/month plan even after the click is completed it keeps on analyzing
+3. The test case specific JSON file has the step details, is it required, if there is no test data required, like no text box, dropdown is available it should keep the file empty
+4. Even though I have deleted the TC001, why did it started with TC002, it should start with TC001
+

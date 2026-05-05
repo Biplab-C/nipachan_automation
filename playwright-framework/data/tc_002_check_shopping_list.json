@@ -1,0 +1,20 @@
+{
+  "tc_002": {
+    "test_name": "Check Shopping List",
+    "generated_at": "2026-04-30T22:10:26.976827",
+    "form_inputs": [
+      {
+        "step": 2,
+        "description": "Search the Cake",
+        "locator_constant": "SEARCH_INPUT",
+        "value": "Cake"
+      },
+      {
+        "step": 3,
+        "description": "Check the first item name has cake in it",
+        "locator_constant": "SEARCH_INPUT",
+        "value": "cake"
+      }
+    ]
+  }
+}

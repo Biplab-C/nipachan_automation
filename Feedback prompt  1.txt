@@ -1,0 +1,25 @@
+OK I understood how it is behaving now. Broilerplate is ready.
+
+Currenlty, it is failing the step below
+Purchase $0/month plan
+I intentionally wrote like it instead of "Click on Purchase button for $0/month", natuarlly it create the test step with wrong locator.
+So how it should work is:
+1. It will mandatorily use the playwright framework given in the folder path
+2. First upon receiving the test steps, it will read the test steps and convert into test cases and will store in the tests folder
+3. Browser will be launched
+4. As it lands into a page it will first capture all the probable xpaths type wise and will give a tag based on the item name
+5. Test step analyzer agent will analyze which item to act upon and write the steps accordingly.
+6. Once the test steps are ready for a particular page it will be executed and repeat the step 4-6 till end of test
+7. Next time if a new test case is added, it will first check which steps are already scripted, those will be used as is only new items will be added
+
+UI level feedback:
+1. User will have test case add, edit and delete feature.
+2. Once user clicks on add test cases, it will come up with a Test Steps (one per line) text area
+3. Once done, user can save it, once done a test case ID will be created and with the same ID the test cases will be added under the playwright project test folder
+4. User should be able to edit the steps, after save the steps will be edited it will be changed accordingly
+5. User should be able to delete, the test cases will be deleted from the playwright part
+
+
+Execute this part with planned agent workflow
+
+

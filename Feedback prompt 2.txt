@@ -1,0 +1,21 @@
+Now it is improved.
+
+But the framework is not being utlized fully. The test case is being added however no other artifacts getting added
+
+Flow:
+1. It will create the test cases based on the test steps written in English language
+2. After landing to the page below things will happen in this order to successfully create the Page object model
+	a. Create the page class
+	b. Add all the items
+	c. Create a test case specific JSON file with relevant items
+	d. Create the relevant functions utlizing the JSON item as a test data
+	e. Create the functions for each item utlizing the JSON parameters and the reusable functions from util functions
+	f. If util functions are run out , add them
+it will keep on doing the same stuff for all the pages when doing newly
+
+The ultimate goal is to use the framework as much as possible so that it becomes structured, uses lesser amount of tokens, the stability and the consistency is achieved using framework
+	
+	
+	
+
+	

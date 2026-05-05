@@ -1,0 +1,19 @@
+Same bug
+
+AS-IS
+
+        self.page.goto("https://ultimateqa.com/automation", wait_until="domcontentloaded")
+        # Step 1: Click on Fake Pricing Page
+        self.page.locator("text=Fake Pricing Page").first.click()
+        # Step 2: Purchase $0/month plan
+        self.page.locator("a.et_pb_pricing_table_button:has-text('PURCHASE')").first.click()
+        # Step 3: Click on Services Link
+        self.page.locator("a:has-text('Services')").first.click()
+		
+TO-BE
+launchURL
+click_fake_pricing_page
+click_purchase_button
+click_services_link
+
+	
