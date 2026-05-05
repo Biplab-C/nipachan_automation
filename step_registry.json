@@ -1,0 +1,50 @@
+{
+  "I verify the \"Shopping List\" link is visible": {
+    "full_step": "Then I verify the \"Shopping List\" link is visible",
+    "function_name": "i_verify_the_value_link_is_visible",
+    "steps_file": "TC_001_check_shopping_list_steps.py",
+    "implemented": true,
+    "page_class": "HebHomePage",
+    "method_name": "SHOPPING_LISTS_LINK",
+    "created_at": "2026-05-01T23:32:54.367884",
+    "playwright_locator": "a[aria-label='Shopping lists menu']"
+  },
+  "I search for \"Cake\"": {
+    "full_step": "When I search for \"Cake\"",
+    "function_name": "i_search_for_value",
+    "steps_file": "TC_001_check_shopping_list_steps.py",
+    "implemented": true,
+    "page_class": "HebHomePage",
+    "method_name": "SEARCH_INPUT",
+    "created_at": "2026-05-01T23:32:54.367884",
+    "playwright_locator": "#search-input"
+  },
+  "I verify the first item name contains \"cake\"": {
+    "full_step": "Then I verify the first item name contains \"cake\"",
+    "function_name": "i_verify_the_first_item_name_contains_value",
+    "steps_file": "TC_001_check_shopping_list_steps.py",
+    "implemented": true,
+    "page_class": "HebSearchPage",
+    "method_name": "SEARCH_RESULTS_HEADING",
+    "created_at": "2026-05-01T23:32:54.373979",
+    "playwright_locator": "#searchGridHeader"
+  },
+  "I click on the \"Recipe and Meals\" link": {
+    "full_step": "When I click on the \"Recipe and Meals\" link",
+    "function_name": "i_click_on_the_value_link",
+    "steps_file": "TC_003_click_recipe_link_steps.py",
+    "implemented": false,
+    "page_class": "",
+    "method_name": "",
+    "created_at": "2026-05-01T23:51:18.703296"
+  },
+  "I verify there are 5 items": {
+    "full_step": "And I verify there are 5 items",
+    "function_name": "i_verify_there_are_5_items",
+    "steps_file": "TC_003_click_recipe_link_steps.py",
+    "implemented": false,
+    "page_class": "",
+    "method_name": "",
+    "created_at": "2026-05-01T23:51:18.704291"
+  }
+}
