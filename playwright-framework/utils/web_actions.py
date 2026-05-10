@@ -12,6 +12,12 @@ logger = logging.getLogger(__name__)
 _STRATEGY_PREFIXES = ("css=", "xpath=", "text=", "role=", "placeholder=", "label=", "test_id=")
 
 
+def _validate_locator(locator: str) -> None:
+    """Block any locator that still contains an unresolved {placeholder}."""
+    if "{" in locator and "}" in locator:
+        raise ValueError(f"Unresolved locator template: {locator}")
+
+
 class WebActions:
     """
     Playwright web interaction utilities.
@@ -142,6 +148,7 @@ class WebActions:
     # ------------------------------------------------------------------
 
     def click(self, locator: str, timeout: int = Config.TIMEOUT) -> None:
+        _validate_locator(locator)
         self._highlight(locator)
         def _action():
             if self._has_prefix(locator):
@@ -176,6 +183,7 @@ class WebActions:
         clear_first: bool = True,
         timeout: int = Config.TIMEOUT,
     ) -> None:
+        _validate_locator(locator)
         self._highlight(locator)
         def _action():
             el = self._resolve(locator) if self._has_prefix(locator) else self.page.locator(locator)
@@ -201,6 +209,7 @@ class WebActions:
         self._execute_with_retry(f"type_text('{locator}')", _action)
 
     def press_key(self, locator: str, key: str, timeout: int = Config.TIMEOUT) -> None:
+        _validate_locator(locator)
         def _action():
             self.page.locator(locator).press(key, timeout=timeout)
 
@@ -254,6 +263,7 @@ class WebActions:
     # ------------------------------------------------------------------
 
     def wait_for_visible(self, locator: str, timeout: int = Config.TIMEOUT) -> None:
+        _validate_locator(locator)
         def _action():
             el = self._resolve(locator) if self._has_prefix(locator) else self.page.locator(locator)
             el.wait_for(state="visible", timeout=timeout)
@@ -284,6 +294,7 @@ class WebActions:
         index: int = None,
         timeout: int = Config.TIMEOUT,
     ) -> None:
+        _validate_locator(locator)
         self._highlight(locator)
         def _action():
             el = self.page.locator(locator)
@@ -391,6 +402,11 @@ class WebActions:
             return self.page.evaluate(script, *args)
 
         return self._execute_with_retry("execute_script()", _action)
+
+    def assert_text_visible(self, text: str, timeout: int = Config.TIMEOUT) -> None:
+        from pages.common_page import CommonPage
+        locator = CommonPage.text_by_value(text)
+        self.wait_for_visible(locator, timeout=timeout)
 
     def accept_dialog(self) -> None:
         self.page.on("dialog", lambda dialog: dialog.accept())

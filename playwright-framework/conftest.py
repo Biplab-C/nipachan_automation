@@ -1,10 +1,70 @@
 import base64
+import json
+import os
+import time
 
 import pytest
 from playwright.sync_api import Page
 
 from config.config import Config
 from utils.excel_utils import ExcelUtils
+
+# Make all shared step modules available as pytest fixtures globally.
+# pytest-bdd v7 requires this — plain imports in test files do NOT register fixtures.
+pytest_plugins = [
+    "features.steps.shared.navigation_steps",
+    "features.steps.shared.search_steps",
+    "features.steps.shared.link_steps",
+    "features.steps.shared.assertion_steps",
+    "features.steps.shared.form_steps",
+]
+
+
+# ------------------------------------------------------------------
+# pytest-bdd step tracking (emits NIPACHAN_STEP: JSON lines to stdout)
+# ------------------------------------------------------------------
+
+_step_state: dict = {}   # nodeid → {counter, start}
+_failed_steps: set = set()  # (nodeid, step_num) pairs already reported via step_error
+
+
+def pytest_bdd_before_step(request, feature, scenario, step, step_func):
+    nid = request.node.nodeid
+    if nid not in _step_state:
+        _step_state[nid] = {"counter": 0}
+    _step_state[nid]["counter"] += 1
+    _step_state[nid]["start"] = time.time()
+
+
+def pytest_bdd_after_step(request, feature, scenario, step, step_func, step_func_args):
+    nid = request.node.nodeid
+    state = _step_state.get(nid, {"counter": 1, "start": time.time()})
+    step_num = state.get("counter", 1)
+    if (nid, step_num) in _failed_steps:
+        return  # already reported via step_error
+    duration = int((time.time() - state.get("start", time.time())) * 1000)
+    _emit_step(step_num, step, passed=True, error="", duration=duration)
+
+
+def pytest_bdd_step_error(request, feature, scenario, step, step_func, step_func_args, exception):
+    nid = request.node.nodeid
+    state = _step_state.get(nid, {"counter": 1, "start": time.time()})
+    step_num = state.get("counter", 1)
+    _failed_steps.add((nid, step_num))
+    duration = int((time.time() - state.get("start", time.time())) * 1000)
+    _emit_step(step_num, step, passed=False, error=str(exception), duration=duration)
+
+
+def _emit_step(step_num: int, step, passed: bool, error: str, duration: int):
+    result = {
+        "step": step_num,
+        "description": f"{step.keyword} {step.name}",
+        "passed": passed,
+        "error": error,
+        "skipped": False,
+        "duration_ms": duration,
+    }
+    print(f"\nNIPACHAN_STEP:{json.dumps(result)}", flush=True)
 
 
 # ------------------------------------------------------------------
@@ -47,6 +107,12 @@ def _bootstrap_sample_excel():
 # ------------------------------------------------------------------
 # Browser / context configuration (pytest-playwright hooks)
 # ------------------------------------------------------------------
+
+@pytest.fixture
+def app_url() -> str:
+    """Application URL for navigation steps. Set APP_URL env var before running tests."""
+    return os.environ.get("APP_URL", "http://localhost")
+
 
 @pytest.fixture(scope="session")
 def browser_type_launch_args():

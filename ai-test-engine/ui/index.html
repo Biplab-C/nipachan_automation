@@ -108,6 +108,7 @@ textarea{resize:vertical}
 .step-item.s-pass{border-left:3px solid var(--success)}
 .step-item.s-fail{border-left:3px solid var(--error)}
 .step-item.s-run{border-left:3px solid var(--accent)}
+.step-item.s-skip{border-left:3px solid var(--muted)}
 .step-item.s-pending{border-left:3px solid var(--border)}
 .step-icon{flex-shrink:0;line-height:1.5;font-size:13px}
 .step-info{flex:1;min-width:0}
@@ -703,9 +704,12 @@ async function executeTestCase(tcId) {
   // Reset results panel
   resetResults();
 
+  // Prefer gherkin_steps (v5 strings or v4 dicts) over raw English for execution view
+  const displaySteps = _resolveDisplaySteps(tc);
+
   // Show execution view in middle panel
   setMidTitle(tc.name);
-  showExecView(tc.steps || []);
+  showExecView(displaySteps);
   setExecStatus('queued');
 
   try {
@@ -717,7 +721,7 @@ async function executeTestCase(tcId) {
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
     currentRunId = data.run_id;
-    openStream(currentRunId, tc.steps || []);
+    openStream(currentRunId, displaySteps);
   } catch(e) {
     setExecStatus('failed');
     alert('Execution failed to start: ' + e.message);
@@ -816,27 +820,52 @@ function handleEvent(data, rawSteps) {
   }
 }
 
-function updateLiveSteps(stepResults, rawSteps) {
+function updateLiveSteps(stepResults, displaySteps) {
+  const failedStep = stepResults.find(s => !s.passed && !s.skipped);
+
   stepResults.forEach(s => {
     const row = document.getElementById(`step-row-${s.step}`);
     const meta = document.getElementById(`step-meta-${s.step}`);
     if (!row) return;
-    row.className = 'step-item ' + (s.passed ? 's-pass' : s.error ? 's-fail' : 's-run');
+    const isSkipped = s.skipped === true;
+    const cls = s.passed ? 's-pass' : isSkipped ? 's-skip' : 's-fail';
+    row.className = `step-item ${cls}`;
     const iconEl = row.querySelector('.step-icon');
     if (iconEl) {
-      if (s.passed) iconEl.innerHTML = '&#10003;';
-      else if (s.error) iconEl.innerHTML = '&#10007;';
-      else iconEl.innerHTML = '<span class="spin"></span>';
-      iconEl.style.color = s.passed ? 'var(--success)' : s.error ? 'var(--error)' : 'var(--accent)';
+      iconEl.innerHTML = s.passed ? '&#10003;' : isSkipped ? '&ndash;' : '&#10007;';
+      iconEl.style.color = s.passed ? 'var(--success)' : isSkipped ? 'var(--muted)' : 'var(--error)';
     }
     if (meta) {
       const dur = s.duration_ms ? s.duration_ms + 'ms' : '';
-      meta.textContent = s.error ? ('Error: ' + s.error.slice(0, 60)) : (dur || 'Running…');
-      if (s.error) meta.style.color = 'var(--error)';
+      if (isSkipped) {
+        meta.textContent = 'Skipped';
+        meta.style.color = 'var(--muted)';
+      } else if (!s.passed) {
+        meta.textContent = 'Error: ' + (s.error || '').slice(0, 80);
+        meta.style.color = 'var(--error)';
+      } else {
+        meta.textContent = dur || 'Passed';
+        meta.style.color = '';
+      }
     }
   });
 
-  // Mark current executing step (next after last passed)
+  // Immediately mark all pending steps after a failure as skipped
+  if (failedStep) {
+    for (let i = failedStep.step + 1; i <= displaySteps.length; i++) {
+      if (stepResults.find(s => s.step === i)) continue;
+      const row = document.getElementById(`step-row-${i}`);
+      const meta = document.getElementById(`step-meta-${i}`);
+      if (!row) continue;
+      row.className = 'step-item s-skip';
+      const iconEl = row.querySelector('.step-icon');
+      if (iconEl) { iconEl.innerHTML = '&ndash;'; iconEl.style.color = 'var(--muted)'; }
+      if (meta) { meta.textContent = 'Skipped'; meta.style.color = 'var(--muted)'; }
+    }
+    return; // no "next running" animation after a failure
+  }
+
+  // Mark next-to-run step as spinning (only when no failure)
   const lastDone = Math.max(0, ...stepResults.map(s => s.step));
   const nextIdx = lastDone + 1;
   const nextRow = document.getElementById(`step-row-${nextIdx}`);
@@ -845,7 +874,7 @@ function updateLiveSteps(stepResults, rawSteps) {
     const iconEl = nextRow.querySelector('.step-icon');
     if (iconEl) { iconEl.innerHTML = '<span class="spin"></span>'; iconEl.style.color = 'var(--accent)'; }
     const meta = document.getElementById(`step-meta-${nextIdx}`);
-    if (meta) meta.textContent = 'Analyzing…';
+    if (meta) { meta.textContent = 'Running…'; meta.style.color = ''; }
   }
 }
 
@@ -864,34 +893,41 @@ function showResults(report) {
   document.getElementById('results-empty').style.display = 'none';
   document.getElementById('result-actions').style.display = 'flex';
 
+  const passed   = report.passed_steps  || 0;
+  const failed   = report.failed_steps  || (report.step_results || []).filter(s => !s.passed && !s.skipped).length;
+  const skipped  = report.skipped_steps || (report.step_results || []).filter(s => s.skipped).length;
+  const total    = report.total_steps   || (report.step_results || []).length;
+
   const banner = document.getElementById('banner');
   banner.style.display = 'flex';
   banner.className = `banner ${report.passed ? 'banner-pass' : 'banner-fail'}`;
-  const retries = report.retry_count > 0 ? ` · ${report.retry_count} retries` : '';
+  const parts = [`${passed} passed`];
+  if (failed)  parts.push(`${failed} failed`);
+  if (skipped) parts.push(`${skipped} skipped`);
   banner.innerHTML = `
     <span>${report.passed ? '&#10003;' : '&#10007;'}</span>
-    <span>${report.passed ? 'All Steps Passed' : 'Some Steps Failed'}</span>
-    <span style="margin-left:auto;font-size:11px;font-weight:500">${report.passed_steps}/${report.total_steps}${retries}</span>`;
+    <span>${report.passed ? 'All Steps Passed' : 'Test Failed'}</span>
+    <span style="margin-left:auto;font-size:11px;font-weight:500;color:inherit">${parts.join(' · ')} / ${total} total</span>`;
 
   const stepsEl = document.getElementById('result-steps');
   stepsEl.innerHTML = '';
   (report.step_results || []).forEach((s, i) => {
+    const isSkipped = s.skipped === true;
     const div = document.createElement('div');
     div.className = 'r-step';
-    const icon = s.passed ? '&#10003;' : '&#10007;';
-    const iconColor = s.passed ? 'var(--success)' : 'var(--error)';
+    const icon      = s.passed ? '&#10003;' : isSkipped ? '&ndash;' : '&#10007;';
+    const iconColor = s.passed ? 'var(--success)' : isSkipped ? 'var(--muted)' : 'var(--error)';
+    const bodyContent = isSkipped
+      ? `<div style="color:var(--muted);font-size:11px">Not executed — step skipped after earlier failure</div>`
+      : `${s.error ? `<div class="err-txt">${esc(s.error)}</div>` : ''}
+         ${s.screenshot ? `<img src="data:image/png;base64,${s.screenshot}" alt="screenshot step ${i + 1}">` : ''}`;
     div.innerHTML = `
       <div class="r-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
         <span style="color:${iconColor}">${icon}</span>
         <span>${esc(s.description || 'Step ' + (i + 1))}</span>
-        <span class="r-dur">${s.duration_ms || 0}ms</span>
+        <span class="r-dur">${isSkipped ? 'skipped' : (s.duration_ms || 0) + 'ms'}</span>
       </div>
-      <div class="r-body">
-        ${s.playwright_locator ? `<div class="locator-txt">${esc(s.action || 'click')} → ${esc(s.playwright_locator)}</div>` : ''}
-        ${s.reasoning ? `<div style="color:var(--muted);margin-top:4px">${esc(s.reasoning)}</div>` : ''}
-        ${s.error ? `<div class="err-txt">${esc(s.error)}</div>` : ''}
-        ${s.screenshot ? `<img src="data:image/png;base64,${s.screenshot}" alt="screenshot step ${i + 1}">` : '<div style="color:var(--muted)">No screenshot</div>'}
-      </div>`;
+      <div class="r-body">${bodyContent}</div>`;
     stepsEl.appendChild(div);
   });
 }
@@ -920,6 +956,11 @@ function reRun() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+function _resolveDisplaySteps(tc) {
+  // Always show the user's original English steps — Gherkin is the hidden implementation detail.
+  return tc.steps || [];
+}
+
 function setMidTitle(text) {
   document.getElementById('mid-title').textContent = text;
 }

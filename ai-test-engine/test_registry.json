@@ -3,55 +3,26 @@
   "cases": {
     "TC_001": {
       "id": "TC_001",
-      "name": "Check Shopping List",
-      "filename": "TC_001_check_shopping_list.py",
+      "name": "Shopping list",
+      "filename": "TC_001_shopping_list.py",
       "app_url": "https://www.heb.com/",
       "steps": [
         "Verify Shopping List link is there",
         "Search the Cake",
         "Check the first item name has cake in it"
       ],
-      "step_actions": [
-        {
-          "playwright_locator": "xpath=//a[normalize-space()='{item_text}']",
-          "action": "assert_visible",
-          "value": "Shopping List"
-        }
-      ],
-      "feature_file": "TC_001_check_shopping_list.feature",
-      "steps_file": "TC_001_check_shopping_list_steps.py",
-      "data_file": "TC_001_check_shopping_list.json",
+      "step_actions": [],
+      "feature_file": "TC_001_shopping_list.feature",
+      "steps_file": "TC_001_shopping_list_steps.py",
+      "data_file": "TC_001_shopping_list.json",
       "gherkin_steps": [
-        {
-          "english_step": "Verify Shopping List link is there",
-          "gherkin_keyword": "Then",
-          "gherkin_step_text": "I verify the \"Shopping List\" link is present",
-          "is_new": true,
-          "matched_pattern": "",
-          "step_type": "assertion",
-          "anticipated_method": "verify_link_present"
-        },
-        {
-          "english_step": "Search the Cake",
-          "gherkin_keyword": "When",
-          "gherkin_step_text": "I search for \"Cake\"",
-          "is_new": true,
-          "matched_pattern": "",
-          "step_type": "action",
-          "anticipated_method": "search_for"
-        },
-        {
-          "english_step": "Check the first item name has cake in it",
-          "gherkin_keyword": "Then",
-          "gherkin_step_text": "I verify the first item name contains \"cake\"",
-          "is_new": true,
-          "matched_pattern": "",
-          "step_type": "assertion",
-          "anticipated_method": "verify_first_item_contains"
-        }
+        "Given I am on the application home page",
+        "Then I verify \"Shopping List\" link is visible",
+        "When I search for \"Cake\"",
+        "Then I verify \"cake\" is visible in the first item name"
       ],
       "status": "failed",
-      "created_at": "2026-05-06T01:32:06.727249"
+      "created_at": "2026-05-10T23:46:00.266073"
     }
   }
 }

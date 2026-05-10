@@ -27,7 +27,7 @@ def _get_tests_dir() -> Path:
 
 def _load_registry() -> dict:
     if REGISTRY_FILE.exists():
-        return json.loads(REGISTRY_FILE.read_text(encoding="utf-8"))
+        return json.loads(REGISTRY_FILE.read_text(encoding="utf-8-sig"))
     return {"cases": {}}
 
 
@@ -109,7 +109,8 @@ def _write_test_file(case: dict):
 
 
 def create_test_case(name: str, steps: list, app_url: str,
-                     feature_file: str = "", steps_file: str = "", data_file: str = "") -> dict:
+                     feature_file: str = "", steps_file: str = "", data_file: str = "",
+                     write_test_file: bool = False) -> dict:
     reg = _load_registry()
     tc_id = _next_tc_id(reg)
     filename = f"{tc_id}_{_slug(name)}.py"
@@ -123,13 +124,14 @@ def create_test_case(name: str, steps: list, app_url: str,
         "feature_file": feature_file,
         "steps_file": steps_file,
         "data_file": data_file,
-        "gherkin_steps": [],  # Populated by API after dedup agent runs
+        "gherkin_steps": [],
         "status": "pending",
         "created_at": datetime.now().isoformat(),
     }
     reg["cases"][tc_id] = case
     _save_registry(reg)
-    _write_test_file(case)
+    if write_test_file:
+        _write_test_file(case)
     return case
 
 
@@ -173,20 +175,32 @@ def delete_test_case(tc_id: str):
     if tc_id not in reg["cases"]:
         raise KeyError(f"{tc_id} not found")
     case = reg["cases"].pop(tc_id)
+    fw = _resolve_framework_path()
 
-    # Delete legacy pytest test file
-    test_file = _get_tests_dir() / case.get("filename", "")
-    if test_file.exists():
-        test_file.unlink()
+    # Feature file
+    _unlink(fw / "features" / case.get("feature_file", ""))
 
-    # Delete BDD feature file + step definitions
-    from execution.bdd_manager import delete_bdd_files
-    delete_bdd_files(
-        feature_file=case.get("feature_file", ""),
-        steps_file=case.get("steps_file", ""),
-    )
+    # Step file — check both generated/ (v5) and flat steps/ (v4)
+    steps_file = case.get("steps_file", "")
+    _unlink(fw / "features" / "steps" / "generated" / steps_file)
+    _unlink(fw / "features" / "steps" / "generated" / (steps_file + ".bak"))
+    _unlink(fw / "features" / "steps" / steps_file)
+
+    # Data JSON
+    _unlink(fw / "data" / case.get("data_file", ""))
+
+    # Legacy pytest test file
+    _unlink(_get_tests_dir() / case.get("filename", ""))
 
     _save_registry(reg)
+
+
+def _unlink(path: Path):
+    try:
+        if path and path.exists():
+            path.unlink()
+    except Exception:
+        pass
 
 
 def get_all_test_cases() -> list:
