@@ -1,9 +1,6 @@
 BODY = """\
-    from utils.web_actions import WebActions
-    from pages.common_page import CommonPage
-    wa = WebActions(page)
-    locator = CommonPage.text_by_value({param})
-    wa.wait_for_visible(locator)
+    page.get_by_text({param}, exact=False).first.scroll_into_view_if_needed()
+    page.get_by_text({param}, exact=False).first.wait_for(state="visible", timeout=15000)
 """
 
 def render(param_name: str) -> str:

@@ -17,6 +17,7 @@ pytest_plugins = [
     "features.steps.shared.link_steps",
     "features.steps.shared.assertion_steps",
     "features.steps.shared.form_steps",
+    "features.steps.shared.analysis_steps",
 ]
 
 

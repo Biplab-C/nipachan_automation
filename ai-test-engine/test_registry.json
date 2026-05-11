@@ -23,6 +23,28 @@
       ],
       "status": "failed",
       "created_at": "2026-05-10T23:46:00.266073"
+    },
+    "TC_002": {
+      "id": "TC_002",
+      "name": "Mobile Search",
+      "filename": "TC_002_mobile_search.py",
+      "app_url": "https://www.flipkart.com/",
+      "steps": [
+        "User is navigated to home page",
+        "Search the Mobile",
+        "Verify if search results displays Mobile"
+      ],
+      "step_actions": [],
+      "feature_file": "TC_002_mobile_search.feature",
+      "steps_file": "TC_002_mobile_search_steps.py",
+      "data_file": "TC_002_mobile_search.json",
+      "gherkin_steps": [
+        "Given User is navigated to home page",
+        "When Search the Mobile",
+        "Then Verify if search results displays Mobile"
+      ],
+      "status": "failed",
+      "created_at": "2026-05-11T23:38:05.426805"
     }
   }
 }

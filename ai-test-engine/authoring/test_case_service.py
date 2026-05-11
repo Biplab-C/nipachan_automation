@@ -63,6 +63,25 @@ def create_streaming(
     yield from _pipeline(name, app_url, raw_steps, llm)
 
 
+def _fill_pattern(pattern: str, params: dict, fallback: str) -> str:
+    """Substitute {param} placeholders in a shared step pattern with concrete values.
+    Falls back to the LLM's step_text if no substitution is possible."""
+    import re as _re
+    result = pattern
+    for name, value in (params or {}).items():
+        result = result.replace(f"{{{name}}}", value)
+    # If unresolved placeholders remain, try regex extraction from fallback text
+    if "{" in result:
+        unresolved = _re.findall(r"\{(\w+)\}", result)
+        regex = _re.escape(pattern)
+        regex = _re.sub(r"\\\{(\w+)\\\}", lambda m: f'(?P<{m.group(1)}>.+)', regex)
+        m = _re.fullmatch(regex, fallback, _re.IGNORECASE)
+        if m:
+            for key in unresolved:
+                result = result.replace(f"{{{key}}}", m.group(key))
+    return result if "{" not in result else fallback
+
+
 def _pipeline(name, app_url, raw_steps, llm) -> Generator[dict, None, None]:
     fw = _fw_path()
 
@@ -106,6 +125,13 @@ def _pipeline(name, app_url, raw_steps, llm) -> Generator[dict, None, None]:
     # 4. Match
     yield {"status": "matching", "message": "Matching against step catalog…"}
     results: List[MatchResult] = [match(s, catalog) for s in normalized]
+
+    # When a step matches a shared definition, replace step_text with the shared
+    # pattern (params filled in) — guarantees the feature file matches at runtime.
+    for step, result in zip(normalized, results):
+        if result.matched and result.catalog_item:
+            step.step_text = _fill_pattern(result.catalog_item.pattern, step.parameters, step.step_text)
+
     reused = sum(1 for r in results if r.matched)
     new_count = len(results) - reused
     yield {"status": "matching_done", "message": f"{reused} reused · {new_count} new placeholder(s)"}

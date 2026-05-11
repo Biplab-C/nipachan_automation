@@ -1,0 +1,9 @@
+{
+  "cucumber.glue": [
+    "features/steps/shared/*.py",
+    "features/steps/generated/*.py"
+  ],
+  "cucumber.features": [
+    "features/**/*.feature"
+  ]
+}
